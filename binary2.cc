@@ -27,6 +27,7 @@ int main(int argc, char* argv[]){
   image.release();
   int value = 128;
   namedWindow(windowName, CV_WINDOW_AUTOSIZE);
+  threshold(grayImage, grayImage, value, THRESHOLD_MAX_VALUE, THRESH_BINARY);
   const string trackbarName = "Threshold";
   createTrackbar(trackbarName, windowName, &value, TRACKBAR_MAX_VALUE, onChange, NULL);
   imshow(windowName, grayImage);
