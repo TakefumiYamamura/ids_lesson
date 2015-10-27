@@ -1,0 +1,508 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title> 情報工学課題 </title>
+</head>
+<body bgcolor="#ffffff">
+<basefont size="2">
+
+<h3>
+トーンマッピング (第2回)
+</h3>
+
+<div align="right"> <table>
+<tr><th align="left"> 氏名       <td align="left"> 山村武史
+<tr><th align="left"> クラス     <td align="left"> 学際科学科
+<tr><th align="left"> 学生証番号 <td align="left"> 08-142025
+</table> </div>
+
+<h2>1.6節　例1</h2>
+<h4> ○プログラムリスト </h4>
+
+<xmp>
+     1  #include <iostream>
+     2  #include <opencv2/core/core.hpp>
+     3  #include <opencv2/imgproc/imgproc.hpp>
+     4  #include <opencv2/highgui/highgui.hpp>
+     5  
+     6  using namespace cv;
+     7  using namespace std;
+     8  
+     9  #define HISTOGRAM_SIZE 256
+    10  #define HISTOGRAM_HEIGHT HISTOGRAM_SIZE
+    11  #define HISTOGRAM_WIDTH (HISTOGRAM_SIZE * 2)
+    12  #define TRACKBAR_HALF 100
+    13  #define TRACKBAR_MAX (TRACKBAR_HALF * 2)
+    14  
+    15  const string windowNameResult = "Resutlt";
+    16  const string windowNameHistogram = "Histogram";
+    17  Mat grayImage;
+    18  int trackbarBrightness = TRACKBAR_HALF;
+    19  int trackbarContrast = TRACKBAR_HALF;
+    20  void onChange(int value, void* data);
+    21  
+    22  int main(int argc, char* argv[]){
+    23    if(argc <= 1){
+    24      cerr << "usage: histogram<file>" << endl;
+    25      return -1;
+    26    }
+    27    Mat image = imread(argv[1]);
+    28    if(!image.data){
+    29      cerr << "no such file: " << argv[1] << endl;
+    30      return -1;
+    31    }
+    32    cvtColor(image, grayImage, CV_BGR2GRAY);
+    33    image.release();
+    34    const string windowNameGray = "Gray";
+    35    namedWindow(windowNameGray, CV_WINDOW_AUTOSIZE);
+    36    imshow(windowNameGray, grayImage);
+    37  
+    38    namedWindow(windowNameResult, CV_WINDOW_AUTOSIZE);
+    39    const string trackbarNameBrightness = "Brightness";
+    40    createTrackbar(trackbarNameBrightness, windowNameResult, &trackbarBrightness, TRACKBAR_MAX, onChange);
+    41    const string trackbarNameContrast = "Contrast";
+    42    createTrackbar(trackbarNameContrast, windowNameResult, &trackbarContrast, TRACKBAR_MAX, onChange);
+    43    namedWindow(windowNameHistogram, CV_WINDOW_AUTOSIZE);
+    44  
+    45    onChange(TRACKBAR_HALF, NULL);
+    46    waitKey(0);
+    47    grayImage.release();
+    48    return 0;
+    49  }
+    50  
+    51  void onChange(int value, void* data){
+    52    float bright = (float)trackbarBrightness / TRACKBAR_MAX;
+    53    float delta = (float)(trackbarContrast - TRACKBAR_HALF) / TRACKBAR_HALF;
+    54    float a, b;
+    55    if (delta >= 0){
+    56      a = 1.0 / (1.0 - delta);
+    57      b = bright - 0.5 * a;
+    58    }else{
+    59      a = 1.0 + delta;
+    60      b = bright  - 0.5 * a;
+    61    }
+    62    unsigned char lookUpTable[HISTOGRAM_SIZE];
+    63    for (int orgVal = 0; orgVal < HISTOGRAM_SIZE; ++orgVal)
+    64    {
+    65      int newVal = round((a * orgVal/(HISTOGRAM_SIZE-1) + b )*(HISTOGRAM_SIZE - 1));
+    66      if (newVal < 0)
+    67      {
+    68        newVal = 0;
+    69      }
+    70      if(newVal > (HISTOGRAM_SIZE-1)){
+    71        newVal = (HISTOGRAM_SIZE-1);
+    72      }
+    73      lookUpTable[orgVal] = (unsigned char)newVal;
+    74    }
+    75    Mat resultImage(grayImage.size(), CV_8UC1);
+    76    for (int row = 0; row < resultImage.rows; ++row)
+    77    {
+    78      for (int col = 0; col < resultImage.cols; ++col)
+    79      {
+    80        resultImage.at<uchar>(row, col) = lookUpTable[grayImage.at<uchar>(row, col)];
+    81      }
+    82    }
+    83    imshow(windowNameResult, resultImage);
+    84  
+    85    float histogram[HISTOGRAM_SIZE];
+    86    for (int val = 0; val < HISTOGRAM_SIZE; ++val)
+    87    {
+    88      histogram[val] = 0.0f;
+    89    }
+    90    for (int row = 0; row < resultImage.rows; ++row)
+    91    {
+    92      for (int col = 0; col < resultImage.cols; ++col)
+    93      {
+    94        const unsigned char val = resultImage.at<uchar>(row, col);
+    95        histogram[val] += 1.0f;
+    96      }
+    97    }
+    98    float maxValue = 0;
+    99    for (int val = 0; val < HISTOGRAM_SIZE; ++val)
+   100    {
+   101      if (histogram[val] > maxValue) maxValue = histogram[val];
+   102    }
+   103    for (int val = 0; val < HISTOGRAM_SIZE; ++val)
+   104    {
+   105      histogram[val] = histogram[val] * HISTOGRAM_HEIGHT / maxValue;
+   106    }
+   107    int binWidth = round(((float)HISTOGRAM_WIDTH)/HISTOGRAM_SIZE);
+   108    Mat histogramImage(HISTOGRAM_HEIGHT, HISTOGRAM_WIDTH, CV_8UC1, Scalar(255));
+   109    for (int val = 0; val < HISTOGRAM_SIZE; ++val)
+   110    {
+   111      rectangle(histogramImage, Point(val*binWidth, HISTOGRAM_HEIGHT), Point(val*binWidth+1, HISTOGRAM_HEIGHT - round(histogram[val])), Scalar(0), CV_FILLED);
+   112    }
+   113    imshow(windowNameHistogram, histogramImage);
+   114    histogramImage.release();
+   115    resultImage.release();
+   116  }
+</xmp>
+<h4> ○実行結果 </h4>
+<img src="https://www.evernote.com/l/AbHu1_bussRAcKpjD241VBr0k4h8UeB7dKwB/image.png" alt="Resutlt" />
+<h4> ○考察 </h4>
+<blockquote>
+
+トーンマッピングをこのプログラムではライブラリを使わずに実装している．<br />
+コードのおおまかな流れとしては，onChange関数をつかいトラックバーの明度とコントラストの値をそれぞれtrackbarBrightnessとtrackbarContrastの変数によってうけとっている．<br />
+そして明るさが大きい時ほど，トーンカーブの切片を大きく取り，コントラストが大きい時ほど，トーンカーブの傾きを大きく刷ることによって，<br />
+それぞれの場合に適応したトーンマッピングを行っている．<br />
+</blockquote>
+
+<h2>1.6節　例2</h2>
+<h4> ○プログラムリスト </h4>
+
+<xmp>
+1   #include <iostream>
+     2  #include <opencv2/core/core.hpp>
+     3  #include <opencv2/imgproc/imgproc.hpp>
+     4  #include <opencv2/highgui/highgui.hpp>
+     5  
+     6  using namespace cv;
+     7  using namespace std;
+     8  
+     9  #define HISTOGRAM_SIZE 256
+    10  #define HISTOGRAM_HEIGHT HISTOGRAM_SIZE
+    11  #define HISTOGRAM_WIDTH (HISTOGRAM_SIZE * 2)
+    12  #define TRACKBAR_HALF 100
+    13  #define TRACKBAR_MAX (TRACKBAR_HALF * 2)
+    14  
+    15  const string windowNameResult = "Resutlt";
+    16  const string windowNameHistogram = "Histogram";
+    17  Mat grayImage;
+    18  int trackbarBrightness = TRACKBAR_HALF;
+    19  int trackbarContrast = TRACKBAR_HALF;
+    20  void onChange(int value, void* data);
+    21  
+    22  int main(int argc, char* argv[]){
+    23    if(argc <= 1){
+    24      cerr << "usage: histogram<file>" << endl;
+    25      return -1;
+    26    }
+    27    Mat image = imread(argv[1]);
+    28    if(!image.data){
+    29      cerr << "no such file: " << argv[1] << endl;
+    30      return -1;
+    31    }
+    32    cvtColor(image, grayImage, CV_BGR2GRAY);
+    33    image.release();
+    34    const string windowNameGray = "Gray";
+    35    namedWindow(windowNameGray, CV_WINDOW_AUTOSIZE);
+    36    imshow(windowNameGray, grayImage);
+    37  
+    38    namedWindow(windowNameResult, CV_WINDOW_AUTOSIZE);
+    39    const string trackbarNameBrightness = "Brightness";
+    40    createTrackbar(trackbarNameBrightness, windowNameResult, &trackbarBrightness, TRACKBAR_MAX, onChange);
+    41    const string trackbarNameContrast = "Contrast";
+    42    createTrackbar(trackbarNameContrast, windowNameResult, &trackbarContrast, TRACKBAR_MAX, onChange);
+    43    namedWindow(windowNameHistogram, CV_WINDOW_AUTOSIZE);
+    44  
+    45    onChange(TRACKBAR_HALF, NULL);
+    46    waitKey(0);
+    47    grayImage.release();
+    48    return 0;
+    49  }
+    50  
+    51  void onChange(int value, void* data){
+    52    float bright = (float)trackbarBrightness / TRACKBAR_MAX;
+    53    float delta = (float)(trackbarContrast - TRACKBAR_HALF) / TRACKBAR_HALF;
+    54    float a, b;
+    55    if(delta >= 0){
+    56      a = 1.0 / (1.0 - delta);
+    57      b = bright - 0.5 * a;
+    58    }else{
+    59      a = 1.0 + delta;
+    60      b = bright - 0.5 * a;
+    61    }
+    62    unsigned char lookUpTable[HISTOGRAM_SIZE];
+    63    for (int orgVal = 0; orgVal < HISTOGRAM_SIZE; ++orgVal)
+    64    {
+    65      int newVal = round((a*orgVal/(HISTOGRAM_SIZE-1) + b)*(HISTOGRAM_SIZE - 1));
+    66      if (newVal < 0)
+    67      {
+    68        newVal = 0;
+    69      }
+    70      if (newVal > (HISTOGRAM_SIZE-1)){
+    71        newVal = (HISTOGRAM_SIZE-1);
+    72      }
+    73      lookUpTable[orgVal] = (unsigned char)newVal;
+    74    }
+    75    Mat lookUpTableMatrix(HISTOGRAM_SIZE, 1, CV_8U, lookUpTable);
+    76  
+    77    Mat resultImage;
+    78    LUT(grayImage, lookUpTableMatrix, resultImage);
+    79    lookUpTableMatrix.release();
+    80    imshow(windowNameResult, resultImage);
+    81  
+    82    MatND histogram;
+    83    const Mat images[] = {resultImage};
+    84    const int channels[] = {0};
+    85    const int histSize[] = {HISTOGRAM_SIZE};
+    86    const float range_0[] = {0, HISTOGRAM_SIZE};
+    87    const float* ranges[] = {range_0};
+    88    calcHist(images, 1, channels, Mat(), histogram, 1, histSize, ranges, true, false);
+    89    double maxValue = 0;
+    90    minMaxLoc(histogram, NULL, &maxValue);
+    91    histogram.convertTo(histogram, -1, HISTOGRAM_HEIGHT/maxValue, 0);
+    92    int binWidth = round(((float)HISTOGRAM_WIDTH)/HISTOGRAM_SIZE);
+    93    Mat histogramImage(HISTOGRAM_HEIGHT, HISTOGRAM_WIDTH, CV_8UC1, Scalar(255));
+    94    for(int val = 0; val < HISTOGRAM_SIZE; val++){
+    95      rectangle(histogramImage, Point(val*binWidth, HISTOGRAM_HEIGHT), Point(val*binWidth+1, HISTOGRAM_HEIGHT - round(histogram.at<float>(val))), Scalar(0), CV_FILLED);
+    96    }
+    97    imshow(windowNameHistogram, histogramImage);
+    98    histogram.release();
+    99    histogramImage.release();
+   100    resultImage.release();
+   101  }
+</xmp>
+<h4> ○実行結果 </h4>
+<img src="https://www.evernote.com/l/AbErb-P1NIVK2b5XvmL3fxtQhP6f5uhL1vgB/image.png" alt="Resutlt%20%E3%81%A8%20Report02-08-142025.html%20%E2%80%94%20informatic_technology" />
+<img src="https://www.evernote.com/l/AbHntNU3opNE7I1L1igClI8-qQZr33J4GpYB/image.png" alt="Histogram%20%E3%81%A8%20Report02-08-142025.html%20%E2%80%94%20informatic_technology" />
+<h4> ○考察 </h4>
+<blockquote>
+先ほどのプログラムをライブラリを仕様したものである．例えばトーンマッピングを行う際はLUTという関数の第一引数に画像データ，第二引数にルックアップ表，第三引数に画像データを入れると，<br />第一引数の画像データを第二引数のルックアップ表にもとづいて第三引数の画像データに自動で書き込んでくれる．<br />
+またヒストグラム作成も次元数や画像データなどを与えることでcalcHistという関数で簡単に生成刷ることができる．
+
+</blockquote>
+
+<h2>1.6節　例3</h2>
+<h4> ○プログラムリスト </h4>
+
+<xmp>
+     1  #include <iostream>
+     2  #include <opencv2/core/core.hpp>
+     3  #include <opencv2/imgproc/imgproc.hpp>
+     4  #include <opencv2/highgui/highgui.hpp>
+     5  
+     6  using namespace cv;
+     7  using namespace std;
+     8  
+     9  #define BASE           2.0
+    10  #define RATIO          32.0
+    11  #define HISTOGRAM_SIZE 256
+    12  #define TRACKBAR_HALF  128
+    13  #define TRACKBAR_MAX   (TRACKBAR_HALF * 2)
+    14  
+    15  Mat grayImage;
+    16  const string windowName = "Result";
+    17  int trackbarGamma = TRACKBAR_HALF;
+    18  unsigned char lookUpTable[TRACKBAR_MAX + 1][HISTOGRAM_SIZE];
+    19  
+    20  void changeGamma(int value, void* data);
+    21  
+    22  int main(int argc, char* argv[]){
+    23    if(argc <= 1){
+    24      cerr << "usage: gammaCV <file>" << endl;
+    25      return -1;
+    26    }
+    27    Mat image = imread(argv[1]);
+    28    if(!image.data){
+    29      cerr << "no such file:" << argv[1] << endl;
+    30      return -1;
+    31    }
+    32    cvtColor(image, grayImage, CV_BGR2GRAY);
+    33    image.release();
+    34    const string windowNameGray = "Gray";
+    35    namedWindow(windowNameGray, CV_WINDOW_AUTOSIZE);
+    36    imshow(windowNameGray, grayImage);
+    37    for (int trackbarVal = 0; trackbarVal <= TRACKBAR_MAX ; ++trackbarVal)
+    38    {
+    39      double gamma = pow(BASE, (TRACKBAR_HALF - trackbarVal)/RATIO);
+    40      for (int val = 0; val < HISTOGRAM_SIZE; ++val)
+    41      {
+    42        lookUpTable[trackbarVal][val] = (unsigned char)round(pow((double)val/(HISTOGRAM_SIZE-1), gamma)*(HISTOGRAM_SIZE - 1));
+    43      }
+    44    }
+    45    namedWindow(windowName, CV_WINDOW_AUTOSIZE);
+    46    const string trackbarName = "Gammma";
+    47    createTrackbar(trackbarName, windowName, &trackbarGamma, TRACKBAR_MAX, changeGamma);
+    48    changeGamma(TRACKBAR_HALF, NULL);
+    49    waitKey(0);
+    50    grayImage.release();
+    51    return 0;
+    52  }
+    53  
+    54  void changeGamma(int value, void* data) {
+    55    Mat lookUpTableMatrix(HISTOGRAM_SIZE, 1, CV_8U, lookUpTable[trackbarGamma]);
+    56    Mat resultImage;
+    57    LUT(grayImage, lookUpTableMatrix, resultImage);
+    58    imshow(windowName, resultImage);
+    59    lookUpTableMatrix.release();
+    60    resultImage.release();
+    61  }
+
+</xmp>
+<h4> ○実行結果 </h4>
+<img src="https://www.evernote.com/l/AbHVfyHrZmJC67L7kZTm8VL19skEoEzm5OAB/image.png" alt="Result" />
+<h4> ○考察 </h4>
+<blockquote>
+ガンマ変換は全体的にあかるくしたり，暗くするのに適した変換である．というのもトーンカーブを真ん中で大きく弧を描くようにするため<br />
+明るすぎたり，暗すぎたりする箇所ほど明度の変化は小さくなり，明度の上限の中間値に近い値ほどその明度の変化が大きくなるからである
+</blockquote>
+
+<h2>1.6節　例4</h2>
+<h4> ○プログラムリスト </h4>
+
+<xmp>
+     1  #include <iostream>
+     2  #include <opencv2/core/core.hpp>
+     3  #include <opencv2/imgproc/imgproc.hpp>
+     4  #include <opencv2/highgui/highgui.hpp>
+     5  
+     6  using namespace cv;
+     7  using namespace std;
+     8  
+     9  int main(int argc, char* argv[]){
+    10    if(argc <= 1){
+    11      cerr << "usage: equalizeCV <file>" << endl;
+    12      return -1;
+    13    }
+    14    Mat image = imread(argv[1]);
+    15    if(!image.data){
+    16      cerr << "no such file:" << argv[1] << endl;
+    17      return -1;
+    18    }
+    19  
+    20    Mat grayImage;
+    21    cvtColor(image, grayImage, CV_BGR2GRAY);
+    22    image.release();
+    23    Mat equalizeImage;
+    24    equalizeHist(grayImage, equalizeImage);
+    25  
+    26    const string windowNameGray = "Gray";
+    27    namedWindow(windowNameGray, CV_WINDOW_AUTOSIZE);
+    28    imshow(windowNameGray, grayImage);
+    29    const string windowNameEqualize = "Equalize";
+    30    namedWindow(windowNameEqualize, CV_WINDOW_AUTOSIZE);
+    31    imshow(windowNameEqualize, equalizeImage);
+    32    waitKey(0);
+    33    grayImage.release();
+    34    equalizeImage.release();
+    35  }
+</xmp>
+<h4> ○実行結果 </h4>
+<img src="https://www.evernote.com/l/AbHKCFht35BBjaVm3FqZhNxjVXVK9IWchuMB/image.png" alt="Equalize" />
+<h4> ○考察 </h4>
+<blockquote>
+ヒストグラム均一化は，画面の明度の分布を均一化するので，全体的に明るい画像は全体的に暗くなり，全体的に暗い画像は明るい箇所が増えることで，コントラストがはっきりするような画像の変換である．<br />
+今回はライブラリとしてequalizeHistを使用しているので割と簡単に実装が行えている．
+</blockquote>
+
+<h2>1.6節　例4</h2>
+<h4> ○プログラムリスト </h4>
+
+<xmp>
+     1  #include <iostream>
+     2  #include <opencv2/core/core.hpp>
+     3  #include <opencv2/imgproc/imgproc.hpp>
+     4  #include <opencv2/highgui/highgui.hpp>
+     5  
+     6  using namespace cv;
+     7  using namespace std;
+     8  
+     9  
+    10  #define BASE           2.0
+    11  #define RATIO          32.0
+    12  #define HISTOGRAM_SIZE 256
+    13  #define TRACKBAR_HALF  128
+    14  #define TRACKBAR_MAX   (TRACKBAR_HALF * 2)
+    15  
+    16  
+    17  Mat grayImage;
+    18  Mat equalizeImage;
+    19  const string windowName = "Result";
+    20  int trackbarEqualize = TRACKBAR_HALF;
+    21  // unsigned char lookUpTable[TRACKBAR_MAX + 1][HISTOGRAM_SIZE];
+    22  unsigned char lookUpTable[HISTOGRAM_SIZE];
+    23  
+    24  void changeHist() {
+    25    Mat lookUpTableMatrix(HISTOGRAM_SIZE, 1, CV_8U, lookUpTable[trackbarEqualize]);
+    26    // Mat resultImage;
+    27    LUT(grayImage, lookUpTableMatrix, equalizeImage);
+    28    imshow(windowName, equalizeImage);
+    29    lookUpTableMatrix.release();
+    30    equalizeImage.release();
+    31  }
+    32  
+    33  int main(int argc, char* argv[]){
+    34    if(argc <= 1){
+    35      cerr << "usage: equalizeCV <file>" << endl;
+    36      return -1;
+    37    }
+    38    Mat image = imread(argv[1]);
+    39    if(!image.data){
+    40      cerr << "no such file:" << argv[1] << endl;
+    41      return -1;
+    42    }
+    43  
+    44  
+    45    cvtColor(image, grayImage, CV_BGR2GRAY);
+    46    image.release();
+    47  
+    48    // equalizeHist(grayImage, equalizeImage);
+    49    float max = 0.0;
+    50    float min = 999999.0;
+    51  
+    52    for (int row = 0; row < grayImage.rows; ++row)
+    53    {
+    54      for (int col = 0; col < grayImage.cols; ++col)
+    55      {
+    56        if(max > grayImage.at<float>(row, col)){
+    57          unsigned char max_val = grayImage.at<uchar>(row, col);
+    58        }
+    59        if(min < grayImage.at<float>(row, col)){
+    60          unsigned char min_val = grayImage.at<uchar>(row, col);
+    61        }
+    62      }
+    63    }
+    64    for (int orgVal = 0; orgVal < HISTOGRAM_SIZE; ++orgVal)
+    65    {
+    66      float a, b;
+    67      a = (255.0)/(max - min);
+    68      b = min;
+    69      int newVal = round((a * (orgVal- min) + min ));
+    70      if (newVal < 0)
+    71      {
+    72        newVal = 0;
+    73      }
+    74      if(newVal > (HISTOGRAM_SIZE-1)){
+    75        newVal = (HISTOGRAM_SIZE-1);
+    76      }
+    77      lookUpTable[orgVal] = (unsigned char)newVal;
+    78    }
+    79  
+    80    changeHist();
+    81  
+    82    const string windowNameGray = "Gray";
+    83    namedWindow(windowNameGray, CV_WINDOW_AUTOSIZE);
+    84    imshow(windowNameGray, grayImage);
+    85    const string windowNameEqualize = "Equalize";
+    86    namedWindow(windowNameEqualize, CV_WINDOW_AUTOSIZE);
+    87    imshow(windowNameEqualize, equalizeImage);
+    88    waitKey(0);
+    89    grayImage.release();
+    90    equalizeImage.release();
+    91  }
+</xmp>
+<h4> ○考察 </h4>
+<blockquote>
+各々の明度レベル（0～255）に割り当てられるピクセル数を等しい値に近づけるのがヒストグラム均一化である<br />ライブラリを使わずトーンカーブの値をいじることで実装しようとしたがbus errorがでてしまいエラーを解決出来なかった．<br />
+</blockquote>
+
+<h3>
+□課題や授業に関して
+</h3>
+<h4> ○レポート作成に要した時間 </h4>
+<blockquote>
+5時間くらい
+</blockquote>
+<p>
+<p>
+<h4> ○授業についての感想や希望 </h4>
+<blockquote>
+特に無し
+</blockquote>
+<p>
+</body>
+</html>

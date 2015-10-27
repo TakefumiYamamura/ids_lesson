@@ -17,7 +17,7 @@ const string windowNameHistogram = "Histogram";
 Mat grayImage;
 int trackbarBrightness = TRACKBAR_HALF;
 int trackbarContrast = TRACKBAR_HALF;
-void onChange(int value, voide* data);
+void onChange(int value, void* data);
 
 int main(int argc, char* argv[]){
   if(argc <= 1){
@@ -31,7 +31,7 @@ int main(int argc, char* argv[]){
   }
   cvtColor(image, grayImage, CV_BGR2GRAY);
   image.release();
-  const string windowNameGray = "Gray"
+  const string windowNameGray = "Gray";
   namedWindow(windowNameGray, CV_WINDOW_AUTOSIZE);
   imshow(windowNameGray, grayImage);
 
@@ -80,7 +80,7 @@ void onChange(int value, void* data){
       resultImage.at<uchar>(row, col) = lookUpTable[grayImage.at<uchar>(row, col)];
     }
   }
-  imshow(windowNameResult, resultImage)
+  imshow(windowNameResult, resultImage);
 
   float histogram[HISTOGRAM_SIZE];
   for (int val = 0; val < HISTOGRAM_SIZE; ++val)
@@ -108,7 +108,7 @@ void onChange(int value, void* data){
   Mat histogramImage(HISTOGRAM_HEIGHT, HISTOGRAM_WIDTH, CV_8UC1, Scalar(255));
   for (int val = 0; val < HISTOGRAM_SIZE; ++val)
   {
-    rectangle(histogramImage, Point(val*binWidth, HISTOGRAM_HEIGHT), Scalar(0), CV_FILED)
+    rectangle(histogramImage, Point(val*binWidth, HISTOGRAM_HEIGHT), Point(val*binWidth+1, HISTOGRAM_HEIGHT - round(histogram[val])), Scalar(0), CV_FILLED);
   }
   imshow(windowNameHistogram, histogramImage);
   histogramImage.release();

@@ -17,7 +17,7 @@ const string windowNameHistogram = "Histogram";
 Mat grayImage;
 int trackbarBrightness = TRACKBAR_HALF;
 int trackbarContrast = TRACKBAR_HALF;
-void onChange(int value, voide* data);
+void onChange(int value, void* data);
 
 int main(int argc, char* argv[]){
   if(argc <= 1){
@@ -31,7 +31,7 @@ int main(int argc, char* argv[]){
   }
   cvtColor(image, grayImage, CV_BGR2GRAY);
   image.release();
-  const string windowNameGray = "Gray"
+  const string windowNameGray = "Gray";
   namedWindow(windowNameGray, CV_WINDOW_AUTOSIZE);
   imshow(windowNameGray, grayImage);
 
@@ -62,7 +62,7 @@ void onChange(int value, void* data){
   unsigned char lookUpTable[HISTOGRAM_SIZE];
   for (int orgVal = 0; orgVal < HISTOGRAM_SIZE; ++orgVal)
   {
-    int newVal = round((a*orgval/(HISTOGRAM_SIZE-1) + b)*(HISTOGRAM_SIZE - 1));
+    int newVal = round((a*orgVal/(HISTOGRAM_SIZE-1) + b)*(HISTOGRAM_SIZE - 1));
     if (newVal < 0)
     {
       newVal = 0;
@@ -70,7 +70,7 @@ void onChange(int value, void* data){
     if (newVal > (HISTOGRAM_SIZE-1)){
       newVal = (HISTOGRAM_SIZE-1);
     }
-    lookUpTable[orgval] = (unsigned char)newVal;
+    lookUpTable[orgVal] = (unsigned char)newVal;
   }
   Mat lookUpTableMatrix(HISTOGRAM_SIZE, 1, CV_8U, lookUpTable);
 
@@ -81,7 +81,7 @@ void onChange(int value, void* data){
 
   MatND histogram;
   const Mat images[] = {resultImage};
-  const int channels[] = {0}
+  const int channels[] = {0};
   const int histSize[] = {HISTOGRAM_SIZE};
   const float range_0[] = {0, HISTOGRAM_SIZE};
   const float* ranges[] = {range_0};
@@ -92,7 +92,7 @@ void onChange(int value, void* data){
   int binWidth = round(((float)HISTOGRAM_WIDTH)/HISTOGRAM_SIZE);
   Mat histogramImage(HISTOGRAM_HEIGHT, HISTOGRAM_WIDTH, CV_8UC1, Scalar(255));
   for(int val = 0; val < HISTOGRAM_SIZE; val++){
-    rectangle(histogramImage, Point(var*binWidth, HISTOGRAM_HEIGHT), Point(val*binWidth+1, HISTOGRAM_HEIGHT - round(histogram.at<float>(val))), Scalar(0), CV_FILED);
+    rectangle(histogramImage, Point(val*binWidth, HISTOGRAM_HEIGHT), Point(val*binWidth+1, HISTOGRAM_HEIGHT - round(histogram.at<float>(val))), Scalar(0), CV_FILLED);
   }
   imshow(windowNameHistogram, histogramImage);
   histogram.release();
