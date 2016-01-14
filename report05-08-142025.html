@@ -1,0 +1,986 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title> 情報工学課題 </title>
+</head>
+<body bgcolor="#ffffff">
+<basefont size="2">
+
+<h3>
+空間フィルタリング (第5回)
+</h3>
+
+<div align="right"> <table>
+<tr><th align="left"> 氏名       <td align="left"> 山村武史
+<tr><th align="left"> クラス     <td align="left"> 学際科学科
+<tr><th align="left"> 学生証番号 <td align="left"> 08-142025
+</table> </div>
+
+<h2>1.12節 例1</h2>
+<h4> ○プログラムリスト </h4>
+<xmp>
+1 #include<iostream>
+2 #include<opencv2/core/core.hpp>
+3 #include<opencv2/imgproc/imgproc.hpp>
+4 #include<opencv2/highgui/highgui.hpp>
+5 using namespace cv;
+6 using namespace std;
+7
+8 void myFilter2D(Mat& src, Mat& dst, Mat& kernel){
+9 if(dst.empty()){
+10 dst.create(src.size(), kernel.type());
+11 }
+12 int ahgt = kernel.rows / 2;
+13 int awth = kernel.cols / 2;
+14 Mat org;
+15 copyMakeBorder(src, org, ahgt, ahgt, awth, awth, BORDER_DEFAULT);
+16 for(int drow = 0; drow < dst.rows; drow++){
+17 for(int dcol = 0; dcol < dst.cols; dcol++){
+18 float result = 0;
+19 for(int krow = 0; krow < kernel.rows; krow++){
+20 for(int kcol = 0; kcol < kernel.cols; kcol++){
+21 result += org.at<uchar>(drow+krow,dcol+kcol) * kernel.at<float>(krow,kcol);
+22 }
+23 }
+24 dst.at<float>(drow,dcol) = result;
+25 }
+1
+26 }
+27 }
+28
+29 int main(int argc, char* argv[]){
+30 if(argc <= 1){
+31 cerr << "usage: linear <file> " << endl;
+32 return -1;
+33 }
+34 Mat sourceImage = imread(argv[1]);
+35 if(!sourceImage.data){
+36 cerr << "no such file: " << argv[1] << endl;
+37 return -1;
+38 }
+39 Mat grayImage;
+40 cvtColor(sourceImage, grayImage, CV_BGR2GRAY);
+41
+42 float m[3][3] = {{-1, 0, -1}, {-2, 0, -2}, {-1, 0, -1}};
+43 Mat kernel(3, 3, CV_32F, m);
+44 Mat tmpImage;
+45 myFilter2D(grayImage, tmpImage, kernel);
+46 convertScaleAbs(tmpImage, grayImage);
+47
+48 const string windowSource = "Source";
+49 namedWindow(windowSource, CV_WINDOW_AUTOSIZE);
+50 imshow(windowSource, sourceImage);
+51 const string windowResult = "Result";
+52 namedWindow(windowResult, CV_WINDOW_AUTOSIZE);
+53 imshow(windowResult, grayImage);
+54 waitKey(0);
+55 sourceImage.release();
+56 grayImage.release();
+57 tmpImage.release();
+58 return 0;
+59 }
+</xmp>
+<h4> ○実行結果 </h4>
+<img src="https://www.evernote.com/l/AbFvr15bgP9D74kAgh0Jpvz5RU_fMkHe9WUB/image.png" alt="Source" />
+<img src="https://www.evernote.com/l/AbGt6FsOXcNFEZ2ayGbqLWGSLQ33o39ZUcgB/image.png" alt="Result" />
+<h4> ○考察 </h4>
+<blockquote>
+ソーベルフィルタは空間一次微分を計算し，画像の中にある境界となるエッジを検出するようなフィルタである．
+このフィルタを，openCV の空間フィルタ関数を使わずに直接的に実装したのが今回のプログラムである．
+main 関数内では 42 行目からカーネル係数を定義し，カーネル係数行列を作成する．その後
+45 行目で myFilter2D 関数を呼び出してフィルタリングを行い，convertScaleAbs 関数によって画素
+値の絶対値をとっている．実行結果を見ると，ほとんど輪郭が検出出来ておらず，はっきり明暗が分かれてい
+るところや暗いところの一部でしか輪郭を検出できていないことから，精度はあまり高くないと思われる．
+</blockquote>
+
+
+<h2>1.12節 例2</h2>
+<h4> ○プログラムリスト </h4>
+
+<xmp>
+1 #include<iostream>
+2 #include<opencv2/core/core.hpp>
+3 #include<opencv2/imgproc/imgproc.hpp>
+4 #include<opencv2/highgui/highgui.hpp>
+5 using namespace cv;
+6 using namespace std;
+7
+8 int main(int argc, char* argv[]){
+3
+9 if(argc <= 1){
+10 cerr << "usage: linearCV <file> " << endl;
+11 return -1;
+12 }
+13 Mat sourceImage = imread(argv[1]);
+14 if(!sourceImage.data){
+15 cerr << "no such file: " << argv[1] << endl;
+16 return -1;
+17 }
+18 Mat grayImage;
+19 cvtColor(sourceImage, grayImage, CV_BGR2GRAY);
+20
+21 float m[3][3] = {{-1, 0, -1}, {-2, 0, -2}, {-1, 0, -1}};
+22 Mat kernel(3, 3, CV_32F, m);
+23 Mat tmpImage;
+24 filter2D(grayImage, tmpImage, CV_32FC1, kernel);
+25 convertScaleAbs(tmpImage, grayImage);
+26
+27 const string windowSource = "Source";
+28 namedWindow(windowSource, CV_WINDOW_AUTOSIZE);
+29 imshow(windowSource, sourceImage);
+30 const string windowResult = "Result";
+31 namedWindow(windowResult, CV_WINDOW_AUTOSIZE);
+32 imshow(windowResult, grayImage);
+33 waitKey(0);
+34 sourceImage.release();
+35 grayImage.release();
+36 tmpImage.release();
+37 return 0;
+38 }
+</xmp>
+<h4> ○実行結果 </h4>
+<img src="https://www.evernote.com/l/AbFvr15bgP9D74kAgh0Jpvz5RU_fMkHe9WUB/image.png" alt="Source" />
+<img src="https://www.evernote.com/l/AbGt6FsOXcNFEZ2ayGbqLWGSLQ33o39ZUcgB/image.png" alt="Result" />
+<h4> ○考察 </h4>
+<blockquote>
+　例 1 ではフィルタリングを直接実装したが，ここでは OpenCV の filter2D を用いた．プログラム
+リストの説明は例 1 の myFilter2D の代わりに filter2D 関数を用いただけの変更なので省略する．用
+いたカーネル係数行列は同じものである．filter2D関数を使っただけなので実行結果にも差は見られない．
+</blockquote>
+
+<h2>1.12節 例3</h2>
+<h4> ○プログラムリスト </h4>
+
+<xmp>
+1 #include<iostream>
+2 #include<opencv2/core/core.hpp>
+3 #include<opencv2/imgproc/imgproc.hpp>
+4 #include<opencv2/highgui/highgui.hpp>
+5 using namespace cv;
+6 using namespace std;
+7
+8 int main(int argc, char* argv[]){
+9 if(argc <= 1){
+10 cerr << "usage: linearEngine <file> " << endl;
+11 return -1;
+12 }
+13 Mat sourceImage = imread(argv[1]);
+14 if(!sourceImage.data){
+15 cerr << "no such file: " << argv[1] << endl;
+16 return -1;
+17 }
+18 Mat grayImage;
+19 cvtColor(sourceImage, grayImage, CV_BGR2GRAY);
+5
+20
+21 float m[3][3] = {{-1, 0, -1}, {-2, 0, -2}, {-1, 0, -1}};
+22 Mat kernel(3, 3, CV_32F, m);
+23 Mat tmpImage(grayImage.size(), CV_32FC1);
+24 Ptr<FilterEngine> filter = createLinearFilter(CV_8U, CV_32F, kernel);
+25 filter->apply(grayImage, tmpImage);
+26 convertScaleAbs(tmpImage, grayImage);
+27
+28 const string windowSource = "Source";
+29 namedWindow(windowSource, CV_WINDOW_AUTOSIZE);
+30 imshow(windowSource, sourceImage);
+31 const string windowResult = "Result";
+32 namedWindow(windowResult, CV_WINDOW_AUTOSIZE);
+33 imshow(windowResult, grayImage);
+34 waitKey(0);
+35 sourceImage.release();
+36 grayImage.release();
+37 tmpImage.release();
+38 return 0;
+39 }
+</xmp>
+<h4> ○実行結果 </h4>
+<img src="https://www.evernote.com/l/AbFvr15bgP9D74kAgh0Jpvz5RU_fMkHe9WUB/image.png" alt="Source" />
+<img src="https://www.evernote.com/l/AbGt6FsOXcNFEZ2ayGbqLWGSLQ33o39ZUcgB/image.png" alt="Result" />
+<h4> ○考察 </h4>
+<blockquote>
+例 2 の filter2D 関数の代わりに createLinearFilter を用いてフィルタを作成し，そのフィルタを用
+いて空間フィルタリングを行っている．データ領域が必要であるので，23 行目で float 型結果画像を
+あらかじめ用意している．24 行目で FilterEngine を作成するが，指定するカーネルは例 1,2 と同じ
+ものであり，このフィルタを用いても例 1,2 と実行結果はかわらないと予想される．実行結果を見る
+と確かに例 1,2 と同じ結果が得られていると確認できる．
+</blockquote>
+
+<h2>1.12節 例4</h2>
+<h4> ○プログラムリスト </h4>
+
+<xmp>
+1 #include<iostream>
+2 #include<opencv2/core/core.hpp>
+3 #include<opencv2/imgproc/imgproc.hpp>
+4 #include<opencv2/highgui/highgui.hpp>
+5 using namespace cv;
+6 using namespace std;
+7
+8 #define KERNEL_SIZE 3
+9
+10 int main(int argc, char* argv[]){
+11 if(argc <= 1){
+12 cerr << "usage: linearDeriv <file> " << endl;
+13 return -1;
+14 }
+15 Mat sourceImage = imread(argv[1]);
+16 if(!sourceImage.data){
+17 cerr << "no such file: " << argv[1] << endl;
+18 return -1;
+19 }
+20 Mat grayImage;
+21 cvtColor(sourceImage, grayImage, CV_BGR2GRAY);
+22
+23 Mat tmpImage(grayImage.size(), CV_32FC1);
+24 Ptr<FilterEngine> filter = createDerivFilter(CV_8U, CV_32F, 1, 0, KERNEL_SIZE, BORDER_DEFAULT);
+25 filter->apply(grayImage, tmpImage);
+26 convertScaleAbs(tmpImage, grayImage);
+27
+28 const string windowSource = "Source";
+29 namedWindow(windowSource, CV_WINDOW_AUTOSIZE);
+30 imshow(windowSource, sourceImage);
+31 const string windowResult = "Result";
+32 namedWindow(windowResult, CV_WINDOW_AUTOSIZE);
+33 imshow(windowResult, grayImage);
+34 waitKey(0);
+35 sourceImage.release();
+36 grayImage.release();
+37 tmpImage.release();
+38 return 0;
+39 }
+</xmp>
+<h4> ○実行結果 </h4>
+<img src="https://www.evernote.com/l/AbHFXSc7PXRNibT_ofSlQSLgNE0mojqETiQB/image.png" alt="Result%20%E3%81%A8%20src%20%E2%80%94%20a.out%20cat.png%20%E2%80%94%20193%C3%9722" />
+<h4> ○考察 </h4>
+<blockquote>
+例 3 の createLinearFilter 関数の代わりに createDerivFilter 関数を使って生成したフィルタを用
+いるプログラムである．例 1,2,3 と違ってカーネル係数行列を指定せず，カーネルサイズだけ指定し
+て，x,y 方向の微分フィルタを作成する.
+実行結果を見ると明らかに精度があがり，エッジの部分が白抜きで表示されている．
+</blockquote>
+
+<h2>1.12節 例5</h2>
+<h4> ○プログラムリスト </h4>
+
+<xmp>
+1 #include<iostream>
+2 #include<opencv2/core/core.hpp>
+3 #include<opencv2/imgproc/imgproc.hpp>
+4 #include<opencv2/highgui/highgui.hpp>
+5 using namespace cv;
+6 using namespace std;
+7
+8 #define KERNEL_SIZE 3
+9
+10 int main(int argc, char* argv[]){
+11 if(argc <= 1){
+12 cerr << "usage: Sobel <file> " << endl;
+13 return -1;
+14 }
+15 Mat sourceImage = imread(argv[1]);
+16 if(!sourceImage.data){
+17 cerr << "no such file: " << argv[1] << endl;
+18 return -1;
+19 }
+20 Mat grayImage;
+8
+21 cvtColor(sourceImage, grayImage, CV_BGR2GRAY);
+22
+23 Mat tmpImage;
+24 Sobel(grayImage, tmpImage, CV_32F, 1, 0, KERNEL_SIZE);
+25 convertScaleAbs(tmpImage, grayImage);
+26
+27 const string windowSource = "Source";
+28 namedWindow(windowSource, CV_WINDOW_AUTOSIZE);
+29 imshow(windowSource, sourceImage);
+30 const string windowResult = "Result";
+31 namedWindow(windowResult, CV_WINDOW_AUTOSIZE);
+32 imshow(windowResult, grayImage);
+33 waitKey(0);
+34 sourceImage.release();
+35 grayImage.release();
+36 tmpImage.release();
+37 return 0;
+38 }
+</xmp>
+<h4> ○実行結果 </h4>
+<img src="https://www.evernote.com/l/AbHFXSc7PXRNibT_ofSlQSLgNE0mojqETiQB/image.png" alt="Result%20%E3%81%A8%20src%20%E2%80%94%20a.out%20cat.png%20%E2%80%94%20193%C3%9722" />
+<h4> ○考察 </h4>
+<blockquote>
+例4で使ったFilterEngineの代わりにSobel関数を用いて微分フィルタリングを行う．例4のときのようにデータ領域をあらかじめ確保しておく必要がないのでMat型宣言を23行目でするのみである．
+24 行目で Sobel 関数を用いている．実行結果を見ると例 4 と同様にフィルタリングが
+行われていることを確認できる．
+</blockquote>
+
+<h2>1.13節 例1</h2>
+<h4> ○プログラムリスト </h4>
+
+<xmp>
+1 #include <iostream>
+2 #include <opencv2/core/core.hpp> // OpevCV の基本機能 (データ型)
+3 #include <opencv2/imgproc/imgproc.hpp> // OpenCV で画像処理
+4 #include <opencv2/highgui/highgui.hpp> // GUI のヘッダファイル
+5 using namespace cv;
+6 using namespace std;
+7
+8 #define KSIZE 3 // カーネルサイズ
+9 #define UPPER_THRESH 200 // 上閾値 (Canny)
+10 #define LOWER_THRESH 50 // 下閾値 (Canny)
+11
+12 int main(int argc, char* argv[]) {
+13 if (argc <= 1) { // コマンド引数の説明
+14 cerr << "usage: edge <file>" << endl;
+15 return -1; // エラー終了
+16 }
+17 Mat sourceImage = imread(argv[1]); // 画像ファイルの読込み
+18 if (!sourceImage.data) { // 読込みの成功確認
+19 cerr << "no such file: " << argv[1] << endl;
+20 return -1; // エラー終了
+21 }
+22 Mat grayImage; // グレー画像
+23 cvtColor(sourceImage, grayImage, CV_BGR2GRAY);// グレー画像への変換
+24 sourceImage.release(); // sourceImage の解放
+25 const string windowSource = "Source"; // 原画像ウィンドウ
+26 namedWindow(windowSource, CV_WINDOW_AUTOSIZE);
+27 imshow(windowSource, grayImage); // 原画像 (グレー) の表示
+28
+29 Mat tmpImage; // float 型結果画像 (32FC1)
+30 Mat resultImage; // 結果画像 (符号無)
+31 Sobel(grayImage, tmpImage, CV_32FC1, 1, 0, KSIZE);
+32 convertScaleAbs(tmpImage, resultImage); // Sobel フィルタ (x 方向)
+33 const string windowSobelX = "SobelX"; // Sobel 画像ウィンドウ
+34 namedWindow(windowSobelX, CV_WINDOW_AUTOSIZE);
+35 imshow(windowSobelX, resultImage); // Sobel 画像の表示
+36 Sobel(grayImage, tmpImage, CV_32FC1, 0, 1, KSIZE);
+37 convertScaleAbs(tmpImage, resultImage); // Sobel フィルタ (y 方向)
+38 const string windowSobelY = "SobelY"; // Sobel 画像ウィンドウ
+39 namedWindow(windowSobelY, CV_WINDOW_AUTOSIZE);
+40 imshow(windowSobelY, resultImage); // Sobel 画像の表示
+10
+41 Laplacian(grayImage, tmpImage, CV_32FC1, KSIZE);
+42 convertScaleAbs(tmpImage, resultImage); // Laplacian フィルタ
+43 const string windowLaplacian = "Laplacian"; // Laplacian 画像ウィンドウ
+44 namedWindow(windowLaplacian, CV_WINDOW_AUTOSIZE);
+45 imshow(windowLaplacian, resultImage); // Laplacian 画像の表示
+46 Canny(grayImage, resultImage, LOWER_THRESH, UPPER_THRESH, KSIZE);
+47 // Canny エッジ検出
+48 const string windowCanny = "Canny"; // Canny 画像ウィンドウ
+49 namedWindow(windowCanny, CV_WINDOW_AUTOSIZE);
+50 imshow(windowCanny, resultImage); // Canny 画像の表示
+51 waitKey(0); // キー入力待ち (無限)
+52 grayImage.release(); // grayImage の解放
+53 resultImage.release(); // resultImage の解放
+54 return 0; // 正常終了
+55 }
+</xmp>
+<h4> ○実行結果 </h4>
+<img src="https://www.evernote.com/l/AbHOeeyfbmdBArlBD2D8pzAOTcQ-PJ7F3P0B/image.png" alt="Source" />
+<img src="https://www.evernote.com/l/AbHxNxxZ_XBOP7DyDOdLO2-AOjkzn9z4jaUB/image.png" alt="Canny" />
+<img src="https://www.evernote.com/l/AbHHgnlnVeROYYhLyi-iU7X5ZsP_T46JMwgB/image.png" alt="Laplacian" />
+<img src="https://www.evernote.com/l/AbGR0MkHY-RJCokY0GvKMPbQxn3DkQepcOcB/image.png" alt="SobelY" />
+<img src="https://www.evernote.com/l/AbEcNey3rhBPA7NuVnfSsk8w1GHujnZSoPkB/image.png" alt="SobelX" />
+<h4> ○考察 </h4>
+<blockquote>
+複数フィルタを用いてエッジ検出を行った結果を表示するプログラムである．まず 29-35 行目
+で 1.12 節例 5 と同様に x 方向のみに 1 階微分，つまり水平方向の明度変化を検出する Sobel フィルタ
+を用いてエッジ検出を行い結果を表示し，36-40 行目で今度は y 方向のみに 1 階微分，つまり垂直方
+向の明度変化を検出する Sobel フィルタを用いてエッジ検出を行い結果を表示した．41-45 行目でラ
+プラシアンフィルタ（空間二次微分を計算し，明度の差分が極端に大きい部分を検出する）を適用し
+て生成した結果を表示，46-50 行目で Canny のアルゴリズムによるエッジ検出を行っている．これは
+閾値を二つ設けることでソーベルフィルタを用いてまず差分の大きい部分の輪郭を抽出し，次にその
+周辺で差分のそれほど大きくない部分も抽出することで正確にエッジ検出を行うものである．実行
+結果を見てみる．SobelX と SobelY を比べると垂直方向にのみ微分される SobelY では垂直に近い輪郭はうまく検出されていないことが見て取れる．ラプラシアンフィルタの
+結果画像を見ると全方向に輪郭検出が行われているが，すべての明度変化に反応しているためノイズ
+が多くなっている．Canny のエッジ検出の結果を見ると面がなく，ノイズを減らしてエッジのみを二
+値画像で抽出していることが確認できる．
+</blockquote>
+
+<h2>1.14節 例1</h2>
+<h4> ○プログラムリスト </h4>
+
+<xmp>
+1 #include<iostream>
+2 #include<opencv2/core/core.hpp>
+3 #include<opencv2/imgproc/imgproc.hpp>
+4 #include<opencv2/highgui/highgui.hpp>
+5 using namespace cv;
+6 using namespace std;
+7
+8 void printMatrix(Mat matrix){
+9 cout << "(" << endl;
+10 for(int row = 0; row < matrix.rows; row++){
+11 cout << "(";
+12 for(int col = 0; col < matrix.cols; col++){
+13 cout << " " << matrix.at<float>(row,col) << ",";
+14 }
+15 cout << ")" << endl;
+16 }
+17 cout << ")" << endl;
+18 }
+19
+20 int main(int argc, char* argv[]){
+21 if(argc <= 1){
+22 cerr << "usage: sepDeriv <file> " << endl;
+12
+23 return -1;
+24 }
+25 Mat sourceImage = imread(argv[1]);
+26 if(!sourceImage.data){
+27 cerr << "no such file: " << argv[1] << endl;
+28 return -1;
+29 }
+30 Mat grayImage;
+31 cvtColor(sourceImage, grayImage, CV_BGR2GRAY);
+32
+33 #define KERNEL_SIZE 3
+34 Mat tmpImage;
+35 Mat krow;
+36 Mat kcol;
+37 getDerivKernels(krow, kcol, 1, 0, KERNEL_SIZE);
+38 sepFilter2D(grayImage, tmpImage, CV_32FC1, krow, kcol);
+39 convertScaleAbs(tmpImage, grayImage);
+40 cout << "row kernel matrix = ";
+41 printMatrix(krow);
+42 cout << "column kernel matrix = ";
+43 printMatrix(kcol);
+44
+45 const string windowSource = "Source";
+46 namedWindow(windowSource, CV_WINDOW_AUTOSIZE);
+47 imshow(windowSource, sourceImage);
+48 const string windowResult = "Result";
+49 namedWindow(windowResult, CV_WINDOW_AUTOSIZE);
+50 imshow(windowResult, grayImage);
+51 waitKey(0);
+52 sourceImage.release();
+53 grayImage.release();
+54 tmpImage.release();
+55 return 0;
+56 }
+</xmp>
+<h4> ○実行結果 </h4>
+<xmp>
+row kernel matrix =(
+( -1,)
+( 0,)
+( 1,)
+)
+column kernel matrix =(
+( 1,)
+( 2,)
+( 1,)
+)
+</xmp>
+<img src="https://www.evernote.com/l/AbFVJBLvE1dHw6n99AYe_sEV9Pw8iY3AMbEB/image.png" alt="Result" />
+<h4> ○考察 </h4>
+<blockquote>
+x 方向，y 方向に独立したフィルタを適用するとき，フィルタを合成せず，各方向に個別に適用
+するプログラムである．今回は上の例と同じく x 方向に 1 階微分，y 方向に 0 階微分を行っている．
+1.12 節例 2 の filter2D 関数の代わりに getDerivKernels 関数によって得られた x,y 両方向のカーネル
+を sepFilter2D 関数で適用する．35 行目で行フィルタ行列を，36 行目で列フィルタ行列を宣言して
+いる．37 行目で分離フィルタ行列を作成し，38 行目で sepFilter2D 関数によって個別に分離フィル
+タを適用して結果画像を書き出す．40-43 行目で行フィルタ行列と列フィルタ行列を表示するために
+printMatrix 関数を呼び出している．この関数は 8-18 行目で定義され，行列を表示している．実行結
+果を見ると，水平方向だけに 1 階微分であるので 1.12 節例 4,5 と同じ結果が出ていることを確認でき
+る．使用したカーネルも確かに出力されていて，両者とも 1 次元カーネルであることがわかる．
+</blockquote>
+
+<h2>1.14節 例2</h2>
+<h4> ○プログラムリスト </h4>
+
+<xmp>
+1 #include<iostream>
+2 #include<opencv2/core/core.hpp>
+3 #include<opencv2/imgproc/imgproc.hpp>
+4 #include<opencv2/highgui/highgui.hpp>
+5 using namespace cv;
+6 using namespace std;
+7
+8 void printMatrix(Mat matrix){
+9 cout << "(" << endl;
+10 for(int row = 0; row < matrix.rows; row++){
+14
+11 cout << "(";
+12 for(int col = 0; col < matrix.cols; col++){
+13 cout << " " << matrix.at<float>(row,col) << ",";
+14 }
+15 cout << ")" << endl;
+16 }
+17 cout << ")" << endl;
+18 }
+19
+20 int main(int argc, char* argv[]){
+21 if(argc <= 1){
+22 cerr << "usage: sepGaussian <file> " << endl;
+23 return -1;
+24 }
+25 Mat sourceImage = imread(argv[1]);
+26 if(!sourceImage.data){
+27 cerr << "no such file: " << argv[1] << endl;
+28 return -1;
+29 }
+30
+31 #define KERNEL_SIZE 15
+32 #define SIGMA 2.5
+33 Mat resultImage;
+34 Mat kernel = getGaussianKernel(KERNEL_SIZE, SIGMA, CV_32F);
+35 sepFilter2D(sourceImage, resultImage, CV_8UC3, kernel, kernel);
+36 cout << "kernel matrix = ";
+37 printMatrix(kernel);
+38
+39 const string windowSource = "Source";
+40 namedWindow(windowSource, CV_WINDOW_AUTOSIZE);
+41 imshow(windowSource, sourceImage);
+42 const string windowResult = "Result";
+43 namedWindow(windowResult, CV_WINDOW_AUTOSIZE);
+44 imshow(windowResult, resultImage);
+45 waitKey(0);
+46 sourceImage.release();
+47 resultImage.release();
+48 return 0;
+49 }
+</xmp>
+<h4> ○実行結果 </h4>
+<img src="https://www.evernote.com/l/AbF1nSyqE0xFyoRYwW-o7Hiiga54dNhrRtIB/image.png" alt="Result" />
+<h4> ○考察 </h4>
+<blockquote>
+入力したカラー画像にガウシアンフィルタをかけて平滑化するプログラムである．プログラムは
+1.14 節例 1 と同様 main 関数と行列表示のための printMatrix 関数でなっている．main 関数の空間
+フィルタリングを行う部分を見てみる．34 行目で getGaussianKernel 関数により指定したカーネルサ
+イズと標準偏差のガウシアンフィルタのカーネルを生成する．その後 1.14 節例 1 と同様に sepFilter2D
+で分離フィルタを適用する．今回は x,y の両方向に同じ 1 次元カーネルを適用している．実行結果を
+見てみると画像の平滑化がなされ，ぼかしがかかっているのがわかる．使用したカーネルも出力され
+ている．
+</blockquote>
+
+<h2>1.15節 例1</h2>
+<h4> ○プログラムリスト </h4>
+
+<xmp>
+1 #include <iostream>
+2 #include <opencv2/core/core.hpp> // OpevCV の基本機能 (データ型)
+3 #include <opencv2/imgproc/imgproc.hpp> // OpenCV で画像処理
+4 #include <opencv2/highgui/highgui.hpp> // GUI のヘッダファイル
+5 using namespace cv;
+6 using namespace std;
+7
+8 #define KMIN 3 // 最小カーネルサイズ
+9 #define KMAX 41 // 最大カーネルサイズ
+10
+11 void myBoxFilter(Mat& src, Mat& dest, Size ksize);
+12 // integral 画像を用いた box フィルタ関数
+13
+14 int main(int argc, char* argv[]) {
+15 if (argc <= 1) { // コマンド引数の説明
+16 cerr << "usage: box <file>" << endl;
+17 return -1; // エラー終了
+18 }
+19 Mat sourceImage = imread(argv[1]); // 画像ファイルの読込み
+20 if (!sourceImage.data) { // 読込みの成功確認
+21 cerr << "no such file: " << argv[1] << endl;
+22 return -1; // エラー終了
+23 }
+24 const string windowSource = "Source"; // 原画像ウィンドウ
+25 namedWindow(windowSource, CV_WINDOW_AUTOSIZE);
+26 imshow(windowSource, sourceImage); // 原画像の表示
+27
+28 double tickFreqMS = getTickFrequency()/1000.0;// 時間定数
+29 cout << "tick frequency = " << tickFreqMS << "ticks/ms" << endl;
+30 Mat resultImage(sourceImage.size(), CV_8UC3); // 結果画像
+31 for (int ksize = KMIN; ksize <= KMAX; ksize+=2) {
+32 // カーネルサイズの変更
+33 cout << "Kernel Size = " << ksize << "x" << ksize << endl;
+34 Mat kernel = Mat(ksize, ksize, CV_32F, Scalar(1.0/(ksize*ksize)));
+35 // 2 次元 box カーネルの作成
+36 Ptr<FilterEngine> filter = // 2 次元 box フィルタの作成
+37 createLinearFilter(CV_8UC3, CV_8UC3, kernel);
+38 int64 t = getTickCount(); // 開始時刻
+39 filter->apply(sourceImage, resultImage); // 2 次元 box フィルタの適用
+40 cout << "filter2D: " << (getTickCount()-t)/tickFreqMS << "ms\t";
+17
+41 // 処理時間の表示
+42 kernel = Mat(ksize, 1, CV_32F, Scalar(1.0/ksize));
+43 // 1 次元 box カーネルの作成
+44 t = getTickCount(); // 開始時刻
+45 sepFilter2D(sourceImage, resultImage, CV_8UC3, kernel, kernel);
+46 // 分離 box フィルタの適用
+47 cout << "sepFilter: " << (getTickCount()-t)/tickFreqMS << "ms\t";
+48 // 処理時間の表示
+49 t = getTickCount(); // 開始時刻
+50 boxFilter(sourceImage, resultImage, CV_8UC3, Size(ksize, ksize));
+51 // OpenCV box フィルタの適用
+52 cout << "boxFilter: " << (getTickCount()-t)/tickFreqMS << "ms\t";
+53 // 処理時間の表示
+54 t = getTickCount(); // 開始時刻
+55 myBoxFilter(sourceImage, resultImage, Size(ksize, ksize));
+56 // integral 画像による box フィルタの適用
+57 cout << "myBoxFilter: " << (getTickCount()-t)/tickFreqMS << "ms" << endl;
+58 // 処理時間の表示
+59 const string windowResult = "Result"; // 結果画像ウィンドウ
+60 namedWindow(windowResult, CV_WINDOW_AUTOSIZE);
+61 imshow(windowResult, resultImage); // 結果画像の表示
+62 waitKey(0); // キー入力待ち (無限)
+63 }
+64 sourceImage.release(); // sourceImage の解放
+65 resultImage.release(); // resultImage の解放
+66 return 0; // 正常終了
+67 }
+68
+69 void myBoxFilter(Mat& src, Mat& dst, Size ksize) {
+70 if (dst.empty()) { // データ領域の確認
+71 dst.create(src.size(),src.type()); // データ領域の作成
+72 }
+73 const int ahgt = ksize.height / 2;
+74 const int awth = ksize.width / 2;
+75 Mat org;
+76 copyMakeBorder(src, org, ahgt, ahgt, awth, awth, BORDER_DEFAULT);
+77 // カーネル半径分だけ原画像を拡大する
+78 Mat sum(org.rows+1, org.cols+1, CV_32SC3, Scalar(0,0,0));
+79 for (int row = 0; row < org.rows; row++) { // integral 画像
+80 for (int col = 0; col < org.cols; col++) {// 全ピクセルについて
+81 sum.at<Vec3i>(row+1, col+1) = org.at<Vec3b>(row, col);
+82 sum.at<Vec3i>(row+1, col+1) +=
+83 (sum.at<Vec3i>(row, col+1) + sum.at<Vec3i>(row+1, col) -
+84 sum.at<Vec3i>(row, col)); // integral 画像の生成
+85 }
+86 }
+87 // integral(org,sum,CV_32SC3); // OpenCV の関数
+88 const float div = 1.0 / ksize.area(); // カーネルサイズの逆数
+89 for (int row = 0; row < dst.rows; row++) { // box フィルタ
+90 for (int col = 0; col < dst.cols; col++) {// 全ピクセルについて
+91 Vec3f pix = sum.at<Vec3i>(row, col) -
+92 sum.at<Vec3i>(row, col+ksize.width) -
+93 sum.at<Vec3i>(row+ksize.height, col) +
+94 sum.at<Vec3i>(row+ksize.height, col+ksize.width);
+95 dst.at<Vec3b>(row, col) = pix * div; // カーネルサイズで平均化
+96 }
+97 }
+98 }
+</xmp>
+<h4> ○実行結果 </h4>
+<xmp>
+Kernel Size = 3x3
+filter2D:  2.40602ms    sepFilter: 1.24769ms    boxFilter: 1.87461ms    myBoxFilter: 131.707ms
+Kernel Size = 5x5
+filter2D:  7.8327ms sepFilter: 1.61478ms    boxFilter: 1.3534ms myBoxFilter: 117.287ms
+Kernel Size = 7x7
+filter2D:  19.2337ms    sepFilter: 3.18136ms    boxFilter: 1.39994ms    myBoxFilter: 132.547ms
+Kernel Size = 9x9
+filter2D:  22.3668ms    sepFilter: 3.39628ms    boxFilter: 1.43986ms    myBoxFilter: 123.604ms
+Kernel Size = 11x11
+filter2D:  31.0447ms    sepFilter: 4.97731ms    boxFilter: 1.49668ms    myBoxFilter: 120.62ms
+Kernel Size = 13x13
+filter2D:  43.8635ms    sepFilter: 4.65408ms    boxFilter: 2.01011ms    myBoxFilter: 120.696ms
+Kernel Size = 15x15
+filter2D:  56.5594ms    sepFilter: 5.33964ms    boxFilter: 1.48998ms    myBoxFilter: 125.269ms
+Kernel Size = 17x17
+filter2D:  77.0663ms    sepFilter: 10.1615ms    boxFilter: 1.85593ms    myBoxFilter: 121.531ms
+Kernel Size = 19x19
+filter2D:  99.2328ms    sepFilter: 8.50802ms    boxFilter: 1.96925ms    myBoxFilter: 120.514ms
+Kernel Size = 21x21
+filter2D:  110.795ms    sepFilter: 8.03858ms    boxFilter: 1.55617ms    myBoxFilter: 128.342ms
+Kernel Size = 23x23
+filter2D:  132.354ms    sepFilter: 13.2183ms    boxFilter: 1.67798ms    myBoxFilter: 122.777ms
+Kernel Size = 25x25
+filter2D:  163.42ms sepFilter: 8.52511ms    boxFilter: 1.59528ms    myBoxFilter: 126.344ms
+Kernel Size = 27x27
+filter2D:  177.731ms    sepFilter: 9.82786ms    boxFilter: 1.6307ms myBoxFilter: 131.72ms
+Kernel Size = 29x29
+filter2D:  201.37ms sepFilter: 15.3052ms    boxFilter: 2.24396ms    myBoxFilter: 121.979ms
+Kernel Size = 31x31
+filter2D:  250.335ms    sepFilter: 12.3474ms    boxFilter: 1.67406ms    myBoxFilter: 117.947ms
+Kernel Size = 33x33
+filter2D:  258.886ms    sepFilter: 13.7611ms    boxFilter: 2.30775ms    myBoxFilter: 122.086ms
+Kernel Size = 35x35
+filter2D:  304.686ms    sepFilter: 14.2354ms    boxFilter: 1.77696ms    myBoxFilter: 119.573ms
+Kernel Size = 37x37
+filter2D:  328.524ms    sepFilter: 18.7812ms    boxFilter: 3.00731ms    myBoxFilter: 138.25ms
+Kernel Size = 39x39
+filter2D:  372.968ms    sepFilter: 15.7531ms    boxFilter: 1.8415ms myBoxFilter: 123.034ms
+Kernel Size = 41x41
+filter2D:  413.542ms    sepFilter: 20.2461ms    boxFilter: 1.97656ms    myBoxFilter: 134.145ms
+</xmp>
+<p>3*3</p>
+<img src="https://www.evernote.com/l/AbH52Z3HWWtDGqlRZDSTWoqQzF9Wi54R714B/image.png" alt="Result" />
+<p>33*33</p>
+<img src="https://www.evernote.com/l/AbHwF3DIeX5DdZbWRaQNQ2Re604p5SnozmQB/image.png" alt="Result" />
+
+<h4> ○考察 </h4>
+<blockquote>
+平均化フィルタを複数の方法で処理し，実行時間の差を出力するプログラムである．結果画像
+として出力するのは，OpenCV の関数を使わずに直接積分画像から平均化フィルタを実装した関数
+myBoxFilter の実行結果である．31-63 行の for ループでカーネルサイズを変更するごとに複数のフィ
+ルタを適用し，出力結果画像を更新している．33 行でまずカーネルサイズを出力し，34-41 行目で 2 次元 box
+カーネルを createLinearFilter によって生成し，適用して実行時間を表示する．42-48 行目で 1 次元
+box カーネルを生成し，分離フィルタで x,y 方向にそれぞれ 1 次元 box フィルタを適用して実行時間
+を表示，49-53 行目では OpenCV の boxFilter を用いて平均化を実行し，その実行時間を表示する．
+54-61 行目で myBoxFilter 関数を呼び出し，積分画像による平均化フィルタを適用し，実行時間を表
+示，結果画像も表示する．myBoxFilter の中身を見てみると，入力画像をカーネル半径ぶんだけ拡大
+して積分画像の計算を行い，全ピクセルについてカーネルサイズで平均化を行っている．　実行結果
+にはカーネルサイズが 3,33 のときの結果画像をのせた．これを見るとカーネルサイズが大きくなる
+ほど平均化が強く行われ，画像がぼけていくことが確認できる．これはカーネルサイズが大きくなる
+ほど，注目するピクセルの処理により広範囲のピクセルの画素値を利用するためである．また，実行
+時間について見ると，二次元フィルタを適用した場合はカーネルサイズが大きくなるにつれ最も処理
+時間の増加分が大きかった．一次元フィルタを分離フィルタとして適用した場合は，二次元フィルタよ
+りも効率的になったが，まだ処理時間の増加が著しく見られる．これに対して OpenCV の boxFilter
+を利用した場合と，平均化を直接実装した場合は実行時間があまり増加せず，カーネルサイズとは独
+立に定数時間で処理できることが分かる．
+</blockquote>
+
+<h2>1.16節 例1</h2>
+<h4> ○プログラムリスト </h4>
+
+<xmp>
+1 #include <iostream>
+2 #include <opencv2/core/core.hpp> // OpevCV の基本機能 (データ型)
+3 #include <opencv2/imgproc/imgproc.hpp> // OpenCV で画像処理
+4 #include <opencv2/highgui/highgui.hpp> // GUI のヘッダファイル
+5 using namespace cv;
+6 using namespace std;
+7
+8 #define KMIN 9
+9 #define KMAX 15
+10
+11 int main(int argc, char* argv[]) {
+12 if (argc <= 1) { // コマンド引数の説明
+13 cerr << "usage: median <file>" << endl;
+14 return -1; // エラー終了
+21
+15 }
+16 Mat sourceImage = imread(argv[1]); // 画像ファイルの読込み
+17 if (!sourceImage.data) { // 読込みの成功確認
+18 cerr << "no such file: " << argv[1] << endl;
+19 return -1; // エラー終了
+20 }
+21
+22 const string windowSource = "Source"; // 原画像ウィンドウ
+23 namedWindow(windowSource, CV_WINDOW_AUTOSIZE);// ウィンドウ生成
+24 imshow(windowSource, sourceImage); // 原画像の表示
+25 const string windowGaussian = "Gaussian"; // Gausiian 画像ウィンドウ
+26 namedWindow(windowGaussian, CV_WINDOW_AUTOSIZE);// ウィンドウ生成
+27 const string windowBox = "Box"; // box 画像ウィンドウ
+28 namedWindow(windowBox, CV_WINDOW_AUTOSIZE); // ウィンドウ生成
+29 const string windowMedian = "Median"; // median 画像ウィンドウ
+30 namedWindow(windowMedian, CV_WINDOW_AUTOSIZE);// ウィンドウ生成
+31
+32 for (int ksize = KMIN; ksize <= KMAX; ksize +=2) {
+33 Mat resultImage; // 結果画像
+34 GaussianBlur(sourceImage, resultImage, Size(ksize, ksize), -1);
+35 // Gaussian フィルタリング
+36 imshow(windowGaussian, resultImage); // Gaussian 画像の表示
+37 boxFilter(sourceImage, resultImage, CV_8UC3, Size(ksize, ksize));
+38 // box フィルタリング
+39 imshow(windowBox, resultImage); // box 画像の表示
+40 medianBlur(sourceImage, resultImage, ksize);
+41 // median フィルタリング
+42 imshow(windowMedian, resultImage); // median 画像の表示
+43 resultImage.release(); // 結果画像の解放
+44 waitKey(0); // キー入力待ち (無限)
+45 }
+46
+47 sourceImage.release(); // sourceImage の解放
+48 return 0; // 正常終了
+49 }
+</xmp>
+<h4> ○実行結果 </h4>
+<img src="https://www.evernote.com/l/AbHYP_f-pP5Cg6AW8HvHJ7674iJnLfu5l9QB/image.png" alt="Box" />
+<img src="https://www.evernote.com/l/AbFLyowPuW9CQ6O1o5ZuSolzkqmqPtWv-QMB/image.png" alt="Median" />
+<img src="https://www.evernote.com/l/AbFYiaZ3Dz5ChKcDekuRiHgFUx9HDWY6NJ0B/image.png" alt="Gaussian" />
+<h4> ○考察 </h4>
+<blockquote>
+box フィルタをかけると確かに平滑化は行われるが，明度差に関係なく平均化するためエッジが失
+われてしまう．今回はメディアンフィルタを用いてエッジ保存型の平滑化フィルタをかけ，他のフィル
+タとの比較を行うプログラムである．実
+行結果をそれぞれのカーネルサイズごとに比較すると Box フィルタで最も強くぼかしがかかって
+いる．メディアンフィルタでは輪郭はやや残したまま,ぼかしをかけていることがわかる．
+</blockquote>
+
+<h2>1.16節 例2</h2>
+<h4> ○プログラムリスト </h4>
+
+<xmp>
+1 #include <iostream>
+2 #include <opencv2/core/core.hpp> // OpevCV の基本機能 (データ型)
+3 #include <opencv2/imgproc/imgproc.hpp> // OpenCV で画像処理
+4 #include <opencv2/highgui/highgui.hpp> // GUI のヘッダファイル
+5 using namespace cv;
+6 using namespace std;
+7
+8 #define KSIZE 15
+9 #define MAX_LEVEL 128
+10 int color = MAX_LEVEL;
+11 int space = MAX_LEVEL;
+12 const string windowBilateral = "Bilateral"; // 原画像ウィンドウ
+13 void onChange(int value, void* data);
+14 Mat sourceImage;
+15
+16 int main(int argc, char* argv[]) {
+17 if (argc <= 1) { // コマンド引数の説明
+18 cerr << "usage: bilateral <file>" << endl;
+19 return -1; // エラー終了
+20 }
+21 sourceImage = imread(argv[1]); // 画像ファイルの読込み
+22 if (!sourceImage.data) { // 読込みの成功確認
+23 cerr << "no such file: " << argv[1] << endl;
+24 return -1; // エラー終了
+25 }
+26
+27 const string windowSource = "Source"; // 原画像ウィンドウ
+28 namedWindow(windowSource, CV_WINDOW_AUTOSIZE);// ウィンドウ生成
+29 imshow(windowSource, sourceImage); // 原画像の表示
+30 const string windowGaussian = "Gaussian"; // Gausiian 画像ウィンドウ
+31 namedWindow(windowGaussian, CV_WINDOW_AUTOSIZE);// ウィンドウ生成
+32 Mat gaussianImage;
+33 GaussianBlur(sourceImage, gaussianImage, Size(KSIZE, KSIZE), 0);
+34 // Gaussian フィルタリング
+35 imshow(windowGaussian, gaussianImage); // Gaussian 画像の表示
+24
+36 gaussianImage.release();
+37
+38 namedWindow(windowBilateral, CV_WINDOW_AUTOSIZE);
+39 const string trackbarColor = "ColorSigma";
+40 createTrackbar(trackbarColor, windowBilateral, &color, MAX_LEVEL, onChange, NULL);
+41 const string trackbarSpace = "SpaceSigma";
+42 createTrackbar(trackbarSpace, windowBilateral, &space, MAX_LEVEL, onChange, NULL);
+43 onChange(color, NULL);
+44 waitKey(0);
+45 sourceImage.release();
+46 return 0;
+47 }
+48
+49 void onChange(int value, void* data){
+50 Mat bilateralImage;
+51 double sigmaColor = pow(2.0, color/12.0);
+52 double sigmaSpace = space*space/512.0;
+53 bilateralFilter(sourceImage, bilateralImage, KSIZE, sigmaColor, sigmaSpace);
+54 imshow(windowBilateral, bilateralImage);
+55 bilateralImage.release();
+56 }
+</xmp>
+<h4> ○実行結果 </h4>
+<img src="https://www.evernote.com/l/AbFwWVnXLGtGc7KWNZ07d2RBWP5diQS_AfEB/image.png" alt="Gaussian" />
+<img src="https://www.evernote.com/l/AbGOJJKAlElHlb9ef5iqgS_ejYrPPbdxTRIB/image.png" alt="Bilateral" />
+<img src="https://www.evernote.com/l/AbGne-oqHLhOvZmQ7q95TXPCj3v-Q5n8oDgB/image.png" alt="Bilateral" />
+<h4> ○考察 </h4>
+<blockquote>
+ガウシアンフィルタなどのフィルタでは、ノイズをできるだけ除去しようとすると、輪郭もボケてしまう欠点があった．
+この欠点を解決しようとした処理アルゴリズムがバイラテラルフィルタである．
+プログラムではエッジ保存型平滑化フィルタの一つであるバイラテラルフィルタを適用した結果と Gaussian フィ
+ルタを適用した結果を比較している．バイラテラルフィルタはトラックバーで空間標準
+偏差と色標準偏差を変更できる．30-35 行目でガウシアンフィルタを適用した結果を表示する．38 －
+43 行目で結果画像ウィンドウにトラックバーを二つ作ってコールバック関数を呼び出している．コー
+ルバック関数内を見てみると，色シグマと空間シグマを正規化して引き数に指定し，バイラテラル
+フィルタを適用している．実行結果を見てみると色シグマと空間シグマが最大のときはガウシアン
+フィルタと同様エッジは保存されず画像はぼけている．トラックバーをいじってみると，空間シグマは最小付近まで下げると，ぼかしが取れるが20%くらいまでほとんど画像に変化は見られなかった．それに対し，色シグマを最大か
+ら少し下げるとエッジが保存されたまま平滑化が行われた画像を得られた．
+</blockquote>
+
+<h2>鮮鋭画像</h2>
+<h4> ○プログラムリスト </h4>
+
+<xmp>
+1 #include <iostream>
+2 #include <opencv2/core/core.hpp>
+3 #include <opencv2/imgproc/imgproc.hpp>
+4 #include <opencv2/highgui/highgui.hpp>
+5
+6 using namespace std;
+7 using namespace cv;
+8
+9 #define MAX_VALUE 3
+10
+11 const string windowName = "result";
+12 int value = 0;
+13 Mat image;
+14 void onChange(int value, void* data);
+15
+16 int main(int argc, char* argv[]){
+17 if (argc < 2){
+18 cerr << "usage: sharpening <sourceFile>" << endl;
+19 return -1;
+20 }
+21 image = imread(argv[1]);
+22 if (!image.data){
+23 cerr << "no such file: " << argv[1] << endl;
+24 return -1;
+25 }
+26
+27 const string windowOriginal = "Original";
+28 namedWindow(windowOriginal, CV_WINDOW_AUTOSIZE);
+29 imshow(windowOriginal, image);
+30
+31 Mat grayImage;
+32 cvtColor(image, grayImage, CV_BGR2GRAY);
+33 float m[3][3] = {{-1, -1, -1}, {-1, 9, -1}, {-1, -1, -1}};
+34 Mat kernel(3, 3, CV_32F, m);
+35 Mat tmpImage1;
+36 filter2D(grayImage, tmpImage1, CV_32FC1, kernel);
+37 convertScaleAbs(tmpImage1, grayImage);
+38 const string windowFilter2D = "filter2D";
+39 namedWindow(windowFilter2D, CV_WINDOW_AUTOSIZE);
+40 imshow(windowFilter2D, grayImage);
+41
+42 namedWindow(windowName, CV_WINDOW_AUTOSIZE);
+43 const string trackbarName = "ksize";
+44 createTrackbar(trackbarName, windowName, &value, MAX_VALUE, onChange, NULL);
+45 onChange(value, NULL);
+46
+47 waitKey(0);
+48 image.release();
+49 tmpImage1.release();
+50 grayImage.release();
+51 return 0;
+52 }
+53
+54
+55 void onChange(int value, void* data){
+56 int alpha = value*2 + 1;
+57 Mat tmpImage2;
+58 Mat lapImage;
+59 Mat resultImage;
+60 Laplacian(image, tmpImage2, CV_32FC1, alpha);
+61 convertScaleAbs(tmpImage2, lapImage);
+62 resultImage = image - lapImage;
+63 imshow(windowName, resultImage);
+64 tmpImage2.release();
+65 lapImage.release();
+66 resultImage.release();
+67 }
+</xmp>
+<h4> ○実行結果 </h4>
+<img src="https://www.evernote.com/l/AbH6Edxm639JRJg0lg7lDLjgzV4XAi0rJI4B/image.png" alt="result" />
+<img src="https://www.evernote.com/l/AbGZRqmNBaxJ-6NWpol4WKBKFltXEUCznBQB/image.png" alt="result" />
+<img src="https://www.evernote.com/l/AbFcppbRnGhCgrcFGt4Qg-Y3SS7gnDhR3BwB/image.png" alt="result" />
+<img src="https://www.evernote.com/l/AbFs4rZqP0REvIiRSWruIOUyCb_uXb0-cKIB/image.png" alt="result" />
+<h4> ○考察 </h4>
+<blockquote>
+ラプラシアンフィルタを用いて画像を鮮鋭化するプログラム．鮮鋭画像はラプラシアンフィルタ
+をΔ，原画像 I(x,y) として I(x,y) - αΔ I(x,y) ただし，αは鮮鋭化の程度という処理で得られる．プ
+ログラムリストを見てみると，27-29 行目で原画像を表示した後，42-45 行目でトラックバーを生成
+し，コールバック関数 onChange を呼んでいる．onChange 関数の中身を見てみると，まずトラック
+バー値を整形して 1,3,5,7 のいずれかにし，ラプラシアンフィルタのカーネルサイズの引き数として用
+いる (60 行目)．62 行目で画像の引き算を行い，結果画像を表示する．また，main 関数の中の 31-40
+行目は，I(x,y) - Δ I(x,y) 　の処理をカーネルを用いて 1.12 節例 2 の filter2D の応用として行った結
+29
+果を表示する．実行
+結果を見てみると，カーネルサイズが 1 のときは入力画像とあまり変化は見られないが，トラック
+バーを動かしてサイズがあがるごとにエッジが強調されていく．サイズが大きくなるほど黒く塗り潰れてしまい上手く判定ができなかった．
+</blockquote>
+
+<h3>
+□課題や授業に関して
+</h3>
+<h4> ○レポート作成に要した時間 </h4>
+<blockquote>
+8時間くらい
+</blockquote>
+<p>
+<p>
+<h4> ○授業についての感想や希望 </h4>
+<blockquote>
+特に無し
+</blockquote>
+<p>
+</body>
+</html>

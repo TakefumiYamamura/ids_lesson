@@ -1,0 +1,405 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title> 情報工学課題 </title>
+</head>
+<body bgcolor="#ffffff">
+<basefont size="2">
+
+<h3>
+幾何変換／画像合成 (第4回)
+</h3>
+
+<div align="right"> <table>
+<tr><th align="left"> 氏名       <td align="left"> 山村武史
+<tr><th align="left"> クラス     <td align="left"> 学際科学科
+<tr><th align="left"> 学生証番号 <td align="left"> 08-142025
+</table> </div>
+
+<h2>1.9節 例1</h2>
+<h4> ○プログラムリスト </h4>
+
+<xmp>
+     1  #include <iostream> //OpenCVの基本機能(データ型)
+     2  #include <opencv2/core/core.hpp>  //OpenCVで画像処理
+     3  #include <opencv2/imgproc/imgproc.hpp> //GUIのヘッダファイル
+     4  #include <opencv2/highgui/highgui.hpp>
+     5  using namespace cv;
+     6  using namespace std;
+     7  
+     8  #define SCALE_X 5.0 //x軸方向の拡大縮小率
+     9  #define SCALE_Y 3.0 //y軸方向の拡大縮小率
+    10  
+    11  int main(int argc, char* argv[]){
+    12    if (argc < 2){
+    13      cerr << "usage: scale <sourceFile>" << endl;
+    14      return -1; //エラー終了
+    15    }
+    16    Mat image = imread(argv[1]); //画像ファイルの読み込み
+    17    if (!image.data) { //読み込みの成功確認
+    18      cerr << "no such file: " << argv[1] << endl;
+    19      return -1; //エラー終了
+    20    }
+    21    Size dsize(image.size().width*SCALE_X, image.size().height*SCALE_Y); //結果画像のサイズ
+    22    Mat destinationImage; //結果画像
+    23    resize(image, destinationImage, dsize, 0, 0, INTER_NEAREST); //最近隣補間
+    24  
+    25    const string windowSource = "Source"; //原画像ウィンドウ生成
+    26    namedWindow(windowSource, CV_WINDOW_AUTOSIZE);
+    27    imshow(windowSource, image); //原画像の表示
+    28    const string windowDestination = "Destination"; //結果画像ウィンドウ生成
+    29  
+    30    namedWindow(windowDestination,CV_WINDOW_AUTOSIZE);
+    31    imshow(windowDestination,destinationImage); //結果画像の表示
+    32    waitKey(0); //キー入力待ち(無限)
+    33    image.release(); //原画像の解放
+    34    destinationImage.release(); //結果画像の解放
+    35    return 0; //正常終了
+    36  }
+</xmp>
+<h4> ○実行結果 </h4>
+<img src="https://www.evernote.com/l/AbFfdfT4KcFI7rZGmeHmNzYl8LUkSyFCpPQB/image.png" alt="Destination" /><h4> ○考察 </h4>
+<blockquote>
+画像の拡大縮小を行うプログラムである．23行目関数resizeに注目すると第三引数，第四引数で各x軸方向，y軸方向への拡大縮尺率を指定している．第六引数はINTER_LINEAR（双1次補間）,INTER_NEAREST(再近隣補間),INTER_CUBIC(双三次補間)などを指定出来る．このプログラムでは再近隣補間であるINTER_NEARESTを利用している．
+</blockquote>
+
+<h2>1.9 節 例 3</h2>
+<h4> ○プログラムリスト </h4>
+
+<xmp>
+1 #include <iostream>
+2 #include <opencv2/core/core.hpp>
+3 #include <opencv2/imgproc/imgproc.hpp>
+4 #include <opencv2/highgui/highgui.hpp>
+5
+6 using namespace std;
+7 using namespace cv;
+8
+9
+10 int main(int argc, char* argv[]){
+11 if (argc < 2){
+12 cerr << "usage: affine <sourceFile>" << endl;
+13 return -1;
+14 }
+15 Mat image = imread(argv[1]);
+16 if (!image.data){
+17 cerr << "no such file: " << argv[1] << endl;
+18 return -1;
+19 }
+20
+21 Size size = image.size();
+22 Point2f original[3];
+23 original[0] = Point2f(0,0);
+24 original[1] = Point2f(size.width,0);
+25 original[2] = Point2f(0,size.height);
+26 Point2f translate[3];
+27 translate[0] = Point2f(100,150);
+28 translate[1] = Point2f(500,50);
+29 translate[2] = Point2f(50,550);
+30 Mat matrix = getAffineTransform(original, translate);
+31 Mat destinationImage;
+32 warpAffine(image, destinationImage, matrix, size, INTER_CUBIC);
+33
+34 const string windowSource = "Source";
+35 namedWindow(windowSource, CV_WINDOW_AUTOSIZE);
+36 imshow(windowSource, image);
+37 const string windowDestination = "Destination";
+38 namedWindow(windowDestination, CV_WINDOW_AUTOSIZE);
+39 imshow(windowDestination, destinationImage);
+40
+41 waitKey(0);
+42 image.release();
+43 destinationImage.release();
+44 return 0;
+45 }
+</xmp>
+<h4> ○実行結果 </h4>
+<img src="https://www.evernote.com/l/AbHJFE6n5u9KHr8WER_o0Su1IWxhR0r9jroB/image.png" alt="Destination" />
+<h4> ○考察 </h4>
+<blockquote>
+アフィン変換を行うプログラムである．アフィン変換は平行移動を伴う線形写像であり33行目のwrapAffine関数を使ってアフィン変換を行っている．wrapAffine関数の第一引数は入力画像，第四引数で出力画像のサイズを設定し，そのサイズをもとに第二引数に出力画像を設定する．アフィン変換では三点，画像の左上，右上，右下を指定し，それらの点を移動させる形で行っている．
+</blockquote>
+
+<h2>1.10 節 例 1</h2>
+<h4> ○プログラムリスト </h4>
+
+<xmp>
+1 #include <iostream>
+2 #include <opencv2/core/core.hpp>
+3 #include <opencv2/imgproc/imgproc.hpp>
+4 #include <opencv2/highgui/highgui.hpp>
+5
+6 using namespace std;
+7 using namespace cv;
+8
+9 #define MAX_VALUE 256
+10 int value = MAX_VALUE / 2;
+11 Mat image1;
+12 Mat image2;
+13 const string windowName = "Result";
+14 void onChange(int value, void* data);
+15
+16
+17 int main(int argc, char* argv[]){
+18 if (argc < 3){
+19 cerr << "usage: dissolve <file1> <file2>" << endl;
+20 return -1;
+21 }
+22 image1 = imread(argv[1]);
+23 if (!image1.data){
+24 cerr << "no such file: " << argv[1] << endl;
+25 return -1;
+26 }
+27 image2 = imread(argv[2]);
+28 if (!image2.data){
+29 cerr << "no such file: " << argv[2] << endl;
+30 return -1;
+31 }
+32 if ((image1.rows != image2.rows) || (image1.cols != image2.cols)){
+33 cerr << "image sizes are incompatible";
+34 return -1;
+35 }
+36
+37 namedWindow(windowName, CV_WINDOW_AUTOSIZE);
+38 const string trackbarName = "Alpha";
+39 createTrackbar(trackbarName, windowName, &value, MAX_VALUE, onChange, NULL);
+40 onChange(value, NULL);
+41
+42 waitKey(0);
+43 image1.release();
+44 image2.release();
+45 return 0;
+46 }
+47
+48 void onChange(int value, void* data){
+49 double alpha = (double) value / MAX_VALUE;
+50 Mat resultImage = image1*(1.0-alpha) + image2*(alpha);
+51 imshow(windowName, resultImage);
+52 resultImage.release();
+53 }
+</xmp>
+<h4> ○実行結果 </h4>
+<img src="https://www.evernote.com/l/AbHutLRW8gdAiYLpUeSGnqft28DgFJM69u4B/image.png" alt="Result" />
+
+<h4> ○考察 </h4>
+<blockquote>
+二枚の画像を合成するプログラムである．合成する場合には，対応する同じ位置のピクセルの値を使うことで，合成後のピクセル値を計算する．2つの映像をフィードアウトし，同時にフェード飲することで画面を切り替える方法をクロスフェード・ディゾルブと呼ぶ．
+image1では猫が描かれた画像をimage2では星が描かれた画像を読み込み．2つの画像がたしかに合成されている事がわかる．トラックバーの値を上げると，image2が明るくなり，image1が暗くなる．トラックバーの値を下げると，image1が明るくなり，image2が暗くなることが確認できる．
+
+</blockquote>
+
+<h2>1.10 節 例 3</h2>
+<h4> ○プログラムリスト </h4>
+
+<xmp>
+1 #include <iostream>
+2 #include <opencv2/core/core.hpp>
+3 #include <opencv2/imgproc/imgproc.hpp>
+4 #include <opencv2/highgui/highgui.hpp>
+5
+6 using namespace std;
+7 using namespace cv;
+8
+9
+10 int main(int argc, char* argv[]){
+11 if (argc < 4){
+12 cerr << "usage: alphamatte <fore> <back> <alpha>" << endl;
+13 return -1;
+14 }
+15 Mat image = imread(argv[1]);
+16 if (!image.data){
+17 cerr << "no such file: " << argv[1] << endl;
+18 return -1;
+19 }
+20 string window = "foreground";
+21 namedWindow(window, CV_WINDOW_AUTOSIZE);
+22 imshow(window, image);
+23 Mat foreImage(image.size(), CV_32FC3);
+24 image.convertTo(foreImage, CV_32F);
+25
+26
+27 image = imread(argv[2]);
+28 if (!image.data){
+29 cerr << "no such file: " << argv[2] << endl;
+30 return -1;
+31 }
+32 if ((foreImage.rows != image.rows) || (foreImage.cols != image.cols)){
+33 cerr << "second image size is incompatible";
+34 return -1;
+35 }
+36 window = "background";
+37 namedWindow(window, CV_WINDOW_AUTOSIZE);
+38 imshow(window, image);
+39 Mat backImage(image.size(), CV_32FC3);
+40 image.convertTo(backImage, CV_32F);
+41
+42
+43 image = imread(argv[3]);
+44 if (!image.data){
+45 cerr << "no such file: " << argv[3] << endl;
+46 return -1;
+47 }
+48 if ((foreImage.rows != image.rows) || (foreImage.cols != image.cols)){
+49 cerr << "alphamatte image size is incompatible";
+50 return -1;
+51 }
+52 window = "alpha";
+53 namedWindow(window, CV_WINDOW_AUTOSIZE);
+54 imshow(window, image);
+55 Mat alphaImage(image.size(), CV_32FC3);
+56 image.convertTo(alphaImage, CV_32F, 1.0/255.0, 0.0);
+57
+58 Mat onesImage(foreImage.size(), CV_32FC3, Scalar(1.0, 1.0, 1.0));
+59
+60 foreImage = foreImage.mul(alphaImage);
+61 backImage = backImage.mul(onesImage - alphaImage);
+62
+63 Mat resultImage = foreImage + backImage;
+64 resultImage.convertTo(image, CV_8U);
+65 window = "Result";
+66 namedWindow(window, CV_WINDOW_AUTOSIZE);
+67 imshow(window, image);
+68 waitKey(0);
+69
+70 image.release();
+71 resultImage.release();
+72 foreImage.release();
+73 backImage.release();
+74 alphaImage.release();
+75 onesImage.release();
+76 return 0;
+77 }
+</xmp>
+<h4> ○実行結果 </h4>
+<img src="https://www.evernote.com/l/AbHb4iQcH3FCWaYVOwMweF1nqflRBZGACegB/image.png" alt="result" />
+<img src="https://www.evernote.com/l/AbH9roIR0r5JrKhMvJBmtuNgZ4MORdM-vQQB/image.png" alt="foreground" />
+<img src="https://www.evernote.com/l/AbERznKRs-hIs7k-8j0mCNfRlfnECR7uJBgB/image.png" alt="background" />
+<img src="https://www.evernote.com/l/AbEbUPQhGupCRZWXOADTuQJvMemjldKNdKIB/image.png" alt="alpha" />
+<h4> ○考察 </h4>
+<blockquote>
+アルファマッティングを行うプログラムである．
+アルファマッティングは二つの画像を係数アルファを使用することで合成する．別々に描かれた，背景と，画像を合成するのに用いられる．アルファ値は各画素での不透明度を表す．
+合成にはマスク画像と呼ばれる．透過したい部分を定義した画像を用意し，それを基に，透過したい画像の透過を行う．
+
+プログラムでは入力画像を３つ読み込み，第一引数は前景画像，第二引数は背景画像，第三引数はマスク画像である．60行目と61行目で前景画像，背景画像の抽出を行い．63行目で前景と背景画像の合成を行っている．
+
+</blockquote>
+
+
+<h2>エンボス画像</h2>
+<h4> ○プログラムリスト </h4>
+
+<xmp>
+     1  #include <iostream>
+     2  #include <opencv2/core/core.hpp>
+     3  #include <opencv2/imgproc/imgproc.hpp>
+     4  #include <opencv2/highgui/highgui.hpp>
+     5  using namespace cv;
+     6  using namespace std;
+     7  
+     8  Mat image_orig;
+     9  Mat image_moved;
+    10  
+    11  
+    12  #define MAX_VALUE 256
+    13  int value = MAX_VALUE / 2;
+    14  
+    15  const string windowName = "Result";
+    16  void onChange(int value, void *data);
+    17  
+    18  
+    19  int main(int argc, char *argv[])
+    20  {
+    21    if (argc < 2)
+    22    {
+    23      cerr << "usage: en <file>" << endl;
+    24      return -1;
+    25    }
+    26    image_orig = imread(argv[1]);
+    27    if (!image_orig.data) 
+    28    {
+    29        cerr << "no such file: " << argv[1] << endl;
+    30      return -1;
+    31    }
+    32  
+    33    Size size = image_orig.size();
+    34    namedWindow(windowName, CV_WINDOW_AUTOSIZE);
+    35    const string trackBarName ="Alpha";
+    36    createTrackbar(trackBarName, windowName, &value, MAX_VALUE, onChange,NULL);
+    37  
+    38  
+    39    Point2f orig[3];
+    40    orig[0] = Point2f(0,0);
+    41    orig[1] = Point2f(1, 0);
+    42    orig[2] = Point2f(0, 1);
+    43    Point2f moved[3];
+    44    moved[0] = Point2f(1, 1);
+    45    moved[1] = Point2f(2, 1);
+    46    moved[2] = Point2f(1, 2);
+    47    Mat matrix = getAffineTransform(orig, moved);
+    48    warpAffine(image_orig, image_moved, matrix, size, INTER_CUBIC);
+    49  
+    50    onChange(value, NULL);
+    51    waitKey(0);
+    52    image_orig.release();
+    53    image_moved.release();
+    54    return 0;
+    55  }
+    56  
+    57  
+    58  void onChange(int value, void *data){
+    59    double alpha = (double) value / MAX_VALUE;
+    60    Mat grayImage = image_orig;
+    61    cvtColor(image_orig, grayImage, CV_BGR2GRAY);
+    62    image_orig.convertTo(image_orig, CV_32FC1);
+    63    image_moved.convertTo(image_moved, CV_32FC1);
+    64    grayImage.convertTo(grayImage, CV_32FC1);
+    65    Mat resultImage = (image_orig - image_moved) * alpha;
+    66    // Mat testImage = (image_orig - image_moved) * alpha + grayImage;
+    67    resultImage.convertTo(resultImage, CV_8UC1);
+    68    image_orig.convertTo(image_orig, CV_8UC1);
+    69    image_moved.convertTo(image_moved, CV_8UC1);
+    70    imshow(windowName, resultImage);
+    71    resultImage.release();
+    72  }
+</xmp>
+<h4> ○実行結果 </h4>
+<img src="https://www.evernote.com/l/AbFp3FxI8VdLhIEXzuuoD6zg_K1DFz6bkkIB/image.png" alt="Result" />
+<h4> ○考察 </h4>
+<blockquote>
+与えられた画像をエンボス画像 (グレー画像) に変換するプログラムを作成する．
+エンボス加工とは画像データを浮き彫り状にするような画像処理である．
+
+原画像 I(x, y) に対して，I(x, y)−I(x+1, y+1)+Gray(x, y)という処理で得られる．ただし，
+Gray(x, y) は単一階調 (グレー) 画像を意味している．OpenCV であれば，幾何学変換 (1.9 節)
+と画像合成(1.10節)を利用して実現できる．α (I(x, y) − I(x + 1, y + 1))+Gray(x, y) のように
+して，αによってエンボスの程度を調節する.
+まず40~48行目でI(x+1, y+1)となるimage_movedを作成し，61行目よりimage_origをGray(x, y)となるgrayImageを作成し，66行目において式α (I(x, y) − I(x + 1, y + 1))+Gray(x, y)を実現しようとした．
+しかし，Gray(x, y)をたしあわせようとすると下記のようなエラーが表示された．
+<br />
+OpenCV Error: Sizes of input arguments do not match (The operation is neither 'array op array' (where arrays have the same size and the same number of channels), nor 'array op scalar', nor 'scalar op array') in arithm_op, file /tmp/opencv20150725-96925-le1r7s/opencv-2.4.11/modules/core/src/arithm.cpp, line 1287
+libc++abi.dylib: terminating with uncaught exception of type cv::Exception: /tmp/opencv20150725-96925-le1r7s/opencv-2.4.11/modules/core/src/arithm.cpp:1287: error: (-209) The operation is neither 'array op array' (where arrays have the same size and the same number of channels), nor 'array op scalar', nor 'scalar op array' in function arithm_op
+<br />
+どうやらgrayImageとimage_origのimage_moved配列のサイズが違うために起こっているようである．61行目においてimage_origからgrayImageをcvtColor()によって，グレー画像に変換する際，grayImageとimage_origの画像の配列のサイズは同じにならないようである．
+これをリサイズするために様々な手段を試みてみたが，これを解決刷ることが出来なかった．したがって60行目のようにgrayImageを足し合わせなかった画像を出力結果として出している．
+</blockquote>
+
+
+<h3>
+□課題や授業に関して
+</h3>
+<h4> ○レポート作成に要した時間 </h4>
+<blockquote>
+7時間くらい
+</blockquote>
+<p>
+<p>
+<h4> ○授業についての感想や希望 </h4>
+<blockquote>
+特に無し
+</blockquote>
+<p>
+</body>
+</html>

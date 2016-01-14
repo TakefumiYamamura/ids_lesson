@@ -1,0 +1,212 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title> 情報工学課題 </title>
+</head>
+<body bgcolor="#ffffff">
+<basefont size="2">
+
+<h3>
+幾何変換／画像合成 (第4回)
+</h3>
+
+<div align="right"> <table>
+<tr><th align="left"> 氏名       <td align="left"> 山村武史
+<tr><th align="left"> クラス     <td align="left"> 学際科学科
+<tr><th align="left"> 学生証番号 <td align="left"> 08-142025
+</table> </div>
+
+<h2>1.9節　例1</h2>
+<h4> ○プログラムリスト </h4>
+
+<xmp>
+     1  #include <iostream>
+     2  #include <opencv2/core/core.hpp>
+     3  #include <opencv2/imgproc/imgproc.hpp>
+     4  #include <opencv2/highgui/highgui.hpp>
+     5
+     6  using namespace std;
+     7  using namespace cv;
+     8
+     9  #define BASE 2.0
+    10  #define RATIO 32.0
+    11  #define HISTGRAM_SIZE 256
+    12  #define TRACKBAR_HALF 128
+    13  #define TRACKBAR_MAX (TRACKBAR_HALF * 2)
+    14
+    15  Mat image;
+    16  const string windowName = "Result";
+    17  int buffer[3] = {TRACKBAR_HALF, TRACKBAR_HALF, TRACKBAR_HALF};
+    18  
+    19  unsigned char lookUpTable[TRACKBAR_MAX+1][HISTGRAM_SIZE];
+    20  
+    21  void chengeGamma(int value,void* data);
+    22  
+    23  int main(int argc, char const *argv[])
+    24  {
+    25    const string trackbarName[3] = {"X", "Y", "Z"};
+    26    if (argc <= 1)
+    27    {
+    28      cerr << "usage: gammaXYZ <file>" << endl;
+    29      return -1;
+    30    }
+    31    image = imread(argv[1]);
+    32    if (!image.data)
+    33    {
+    34      cerr << "no such file: " << argv[1] << endl;
+    35      return -1;
+    36    }
+    37    const string windowNameOrg = "Original";
+    38    namedWindow(windowNameOrg, CV_WINDOW_AUTOSIZE);
+    39    imshow(windowNameOrg, image);
+    40  
+    41    for (int i = 0; i < TRACKBAR_MAX; ++i)
+    42    {
+    43      double gamma = pow(BASE, (TRACKBAR_HALF - i)/RATIO);
+    44  
+    45      for (int j = 0; j < HISTGRAM_SIZE; ++j)
+    46      {
+    47        lookUpTable[i][j] = (unsigned char)
+    48          round(pow((double)j/(HISTGRAM_SIZE-1), gamma)*(HISTGRAM_SIZE-1));
+    49      }
+    50    }
+    51    namedWindow(windowName, CV_WINDOW_AUTOSIZE);
+    52    for (int i = 0; i < 3; ++i)
+    53    {
+    54      createTrackbar(trackbarName[i], windowName, &buffer[i], TRACKBAR_MAX, chengeGamma);
+    55    }
+    56  
+    57    chengeGamma(TRACKBAR_HALF, NULL);
+    58    waitKey(0);
+    59    image.release();
+    60    return 0;
+    61  }
+    62  
+    63  void chengeGamma(int value, void* data){
+    64    Mat imageXYZ;
+    65    cvtColor(image, imageXYZ, CV_BGR2XYZ);
+    66    vector<Mat> planes;
+    67    split(imageXYZ, planes);
+    68    for (int i = 0; i < 3; ++i)
+    69    {
+    70      Mat lookUpTableMatrix(HISTGRAM_SIZE, 1, CV_8U, lookUpTable[buffer[i]]);
+    71      LUT(planes[i], lookUpTableMatrix, planes[i]);
+    72      lookUpTableMatrix.release();
+    73    }
+    74    Mat result;
+    75    merge(planes, imageXYZ);
+    76    cvtColor(imageXYZ, result, CV_XYZ2BGR);
+    77    imshow(windowName, result);
+    78    for (int i = 0; i < 3; ++i)
+    79    {
+    80      planes[i].release();
+    81    }
+    82    imageXYZ.release();
+    83    result.release();
+    84  }
+</xmp>
+<h4> ○実行結果 </h4>
+<img src="https://www.evernote.com/l/AbGMCKz7I-1JgIcQpdaYfa4o6DQP4CLRsCsB/image.png" alt="Result%20%E3%81%A8%20Report03-08-142025.html%20%E2%80%94%20informatic_technology" />
+<h4> ○考察 </h4>
+<blockquote>
+RGB色空間の画像をXYZ色空間に変換したプログラムである．結果画像のトラックバーを用いてガンマ値を変換できる．
+</blockquote>
+
+<h2>1.7節　例2</h2>
+<h4> ○プログラムリスト </h4>
+
+<xmp>
+     1  #include <iostream>
+     2  #include <opencv2/core/core.hpp>
+     3  #include <opencv2/imgproc/imgproc.hpp>
+     4  #include <opencv2/highgui/highgui.hpp>
+     5  
+     6  using namespace std;
+     7  using namespace cv;
+     8  
+     9  #define DEFAULT_H 22
+    10  #define DEFAULT_S 150
+    11  
+    12  int main(int argc, char const *argv[])
+    13  {
+    14    if (argc <= 1)
+    15    {
+    16      cerr << "usage: sepia <file> " << endl;
+    17      return -1;
+    18    }
+    19    Mat image = imread(argv[1]);
+    20    if (!image.data)
+    21    {
+    22      cerr << "no such file: " << argv[1] << endl;
+    23      return -1;
+    24    }
+    25    Mat imageHSV;
+    26    cvtColor(image, imageHSV, CV_BGR2XYZ);
+    27    std::vector<Mat> planes;
+    28    split(imageHSV, planes);
+    29    planes[0] = DEFAULT_H;
+    30    planes[1] = DEFAULT_S;
+    31    merge(planes, imageHSV);
+    32    Mat sepiaImage;
+    33    cvtColor(imageHSV, sepiaImage, CV_XYZ2BGR);
+    34    imageHSV.release();
+    35  
+    36    const string windowNameSource = "Source";
+    37    namedWindow(windowNameSource, CV_WINDOW_AUTOSIZE);
+    38    imshow(windowNameSource, image);
+    39    const string windowNameSepia = "Sepia";
+    40    namedWindow(windowNameSepia, CV_WINDOW_AUTOSIZE);
+    41    imshow(windowNameSepia, sepiaImage);
+    42    waitKey(0);
+    43    image.release();
+    44    sepiaImage.release();
+    45    return 0;
+    46  }
+</xmp>
+<h4> ○実行結果 </h4>
+<img src="https://www.evernote.com/l/AbESC1TxtrZA17AGd-ob_We_y3tJHaWqKMkB/image.png" alt="Sepia%20%E3%81%A8%20Report03-08-142025.html%20%E2%80%94%20informatic_technology%20%E3%81%A8%20Source" />
+<h4> ○考察 </h4>
+<blockquote>
+入力画像をセピア画像に変換するプログラムである．
+
+</blockquote>
+
+<h2>色空間の違い</h2>
+<h4> ○実行結果 </h4>
+<p>YCrCb</p>
+<img src="https://www.evernote.com/l/AbHjIUgTVZZM_II1yH74MplzmB5c3g-9iysB/image.png" alt="Result" />
+<p>HSV</p>
+<img src="https://www.evernote.com/l/AbF2HMsTYk9Ja7JtPypyrY4jDZ3r7VUx7qQB/image.png" alt="Result" />
+<p>HLS</p>
+<img src="https://www.evernote.com/l/AbGn5i-bG7hNia6n0itEXAqJ5DeVCg03mg0B/image.png" alt="Result" />
+<p>Lab</p>
+<img src="https://www.evernote.com/l/AbGn5i-bG7hNia6n0itEXAqJ5DeVCg03mg0B/image.png" alt="Result" />
+<h4> ○考察 </h4>
+<blockquote>
+YCrC空間はYがRGBの和をとった値で，Cr,Cbがそれぞれ赤と緑の色差をとった値である．<br />
+HSVは色の種類を表す色相，色の鮮やかさを表す彩度，色の明るさを表す明度を変数にもつ空間である．<br />
+HLSはHSV モデルでは，原色が白と同じ明度 (V=100%)になってしまう点を改善した色相空間である。そこで，HSVにおけるRGBやCMYの明度を50%にしたのがHLSモデルである<br />明度の定義がHSVと違うのでLightness (L)と読んで区別する. <br />
+CIEL*a*b空間は，明度を意味する次元 L と補色次元の a および b を持ち、CIE XYZ 色空間の座標を非線形に圧縮したものに基づいている.<br />
+
+
+</blockquote>
+
+
+<h3>
+□課題や授業に関して
+</h3>
+<h4> ○レポート作成に要した時間 </h4>
+<blockquote>
+2時間くらい
+</blockquote>
+<p>
+<p>
+<h4> ○授業についての感想や希望 </h4>
+<blockquote>
+特に無し
+</blockquote>
+<p>
+</body>
+</html>
