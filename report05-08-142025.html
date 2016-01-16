@@ -606,26 +606,18 @@ x 方向，y 方向に独立したフィルタを適用するとき，フィル�
 76 copyMakeBorder(src, org, ahgt, ahgt, awth, awth, BORDER_DEFAULT);
 77 // カーネル半径分だけ原画像を拡大する
 78 Mat sum(org.rows+1, org.cols+1, CV_32SC3, Scalar(0,0,0));
-79 for (int row = 0; row < org.rows; row++) { // integral 画像
-80 for (int col = 0; col < org.cols; col++) {// 全ピクセルについて
-81 sum.at<Vec3i>(row+1, col+1) = org.at<Vec3b>(row, col);
-82 sum.at<Vec3i>(row+1, col+1) +=
-83 (sum.at<Vec3i>(row, col+1) + sum.at<Vec3i>(row+1, col) -
-84 sum.at<Vec3i>(row, col)); // integral 画像の生成
-85 }
-86 }
-87 integral(org,sum,CV_32SC3); // OpenCV の関数
-88 const float div = 1.0 / ksize.area(); // カーネルサイズの逆数
-89 for (int row = 0; row < dst.rows; row++) { // box フィルタ
-90 for (int col = 0; col < dst.cols; col++) {// 全ピクセルについて
-91 Vec3f pix = sum.at<Vec3i>(row, col) -
-92 sum.at<Vec3i>(row, col+ksize.width) -
-93 sum.at<Vec3i>(row+ksize.height, col) +
-94 sum.at<Vec3i>(row+ksize.height, col+ksize.width);
-95 dst.at<Vec3b>(row, col) = pix * div; // カーネルサイズで平均化
-96 }
-97 }
-98 }
+79 integral(org,sum,CV_32SC3); // OpenCV の関数
+80 const float div = 1.0 / ksize.area(); // カーネルサイズの逆数
+81 for (int row = 0; row < dst.rows; row++) { // box フィルタ
+82 for (int col = 0; col < dst.cols; col++) {// 全ピクセルについて
+83 Vec3f pix = sum.at<Vec3i>(row, col) -
+84 sum.at<Vec3i>(row, col+ksize.width) -
+85 sum.at<Vec3i>(row+ksize.height, col) +
+86 sum.at<Vec3i>(row+ksize.height, col+ksize.width);
+87 dst.at<Vec3b>(row, col) = pix * div; // カーネルサイズで平均化
+88 }
+89 }
+90 }
 </xmp>
 <h4> ○実行結果 </h4>
 <xmp>
@@ -817,106 +809,77 @@ filter2D:  413.542ms    sepFilter: 20.2461ms    boxFilter: 1.97656ms    myBoxFil
 <blockquote>
 ガウシアンフィルタなどのフィルタでは、ノイズをできるだけ除去しようとすると、輪郭もボケてしまう欠点があった．
 この欠点を解決しようとした処理アルゴリズムがバイラテラルフィルタである．
-プログラムではエッジ保存型平滑化フィルタの一つであるバイラテラルフィルタを適用した結果と Gaussian フィ
-ルタを適用した結果を比較している．バイラテラルフィルタはトラックバーで空間標準
-偏差と色標準偏差を変更できる．30-35 行目でガウシアンフィルタを適用した結果を表示する．38 －
-43 行目で結果画像ウィンドウにトラックバーを二つ作ってコールバック関数を呼び出している．コー
-ルバック関数内を見てみると，色シグマと空間シグマを正規化して引き数に指定し，バイラテラル
-フィルタを適用している．実行結果を見てみると色シグマと空間シグマが最大のときはガウシアン
-フィルタと同様エッジは保存されず画像はぼけている．トラックバーをいじってみると，空間シグマは最小付近まで下げると，ぼかしが取れるが20%くらいまでほとんど画像に変化は見られなかった．それに対し，色シグマを最大か
-ら少し下げるとエッジが保存されたまま平滑化が行われた画像を得られた．
+色シグマと空間シグマ，それぞれのトラックバーの値を小さくすると画像のぼかしが小さくなる．トラックバーの値が大きいほど，平滑化が強く行われているのが見て取れる．
+
 </blockquote>
 
 <h2>鮮鋭画像</h2>
 <h4> ○プログラムリスト </h4>
 
 <xmp>
-1 #include <iostream>
-2 #include <opencv2/core/core.hpp>
-3 #include <opencv2/imgproc/imgproc.hpp>
-4 #include <opencv2/highgui/highgui.hpp>
-5
-6 using namespace std;
-7 using namespace cv;
-8
-9 #define MAX_VALUE 3
-10
-11 const string windowName = "result";
-12 int value = 0;
-13 Mat image;
-14 void onChange(int value, void* data);
-15
-16 int main(int argc, char* argv[]){
-17 if (argc < 2){
-18 cerr << "usage: sharpening <sourceFile>" << endl;
-19 return -1;
-20 }
-21 image = imread(argv[1]);
-22 if (!image.data){
-23 cerr << "no such file: " << argv[1] << endl;
-24 return -1;
-25 }
-26
-27 const string windowOriginal = "Original";
-28 namedWindow(windowOriginal, CV_WINDOW_AUTOSIZE);
-29 imshow(windowOriginal, image);
-30
-31 Mat grayImage;
-32 cvtColor(image, grayImage, CV_BGR2GRAY);
-33 float m[3][3] = {{-1, -1, -1}, {-1, 9, -1}, {-1, -1, -1}};
-34 Mat kernel(3, 3, CV_32F, m);
-35 Mat tmpImage1;
-36 filter2D(grayImage, tmpImage1, CV_32FC1, kernel);
-37 convertScaleAbs(tmpImage1, grayImage);
-38 const string windowFilter2D = "filter2D";
-39 namedWindow(windowFilter2D, CV_WINDOW_AUTOSIZE);
-40 imshow(windowFilter2D, grayImage);
-41
-42 namedWindow(windowName, CV_WINDOW_AUTOSIZE);
-43 const string trackbarName = "ksize";
-44 createTrackbar(trackbarName, windowName, &value, MAX_VALUE, onChange, NULL);
-45 onChange(value, NULL);
-46
-47 waitKey(0);
-48 image.release();
-49 tmpImage1.release();
-50 grayImage.release();
-51 return 0;
-52 }
-53
-54
-55 void onChange(int value, void* data){
-56 int alpha = value*2 + 1;
-57 Mat tmpImage2;
-58 Mat lapImage;
-59 Mat resultImage;
-60 Laplacian(image, tmpImage2, CV_32FC1, alpha);
-61 convertScaleAbs(tmpImage2, lapImage);
-62 resultImage = image - lapImage;
-63 imshow(windowName, resultImage);
-64 tmpImage2.release();
-65 lapImage.release();
-66 resultImage.release();
-67 }
+     1  #include <iostream>
+     2  #include <opencv2/core/core.hpp>
+     3  #include <opencv2/imgproc/imgproc.hpp>
+     4  #include <opencv2/highgui/highgui.hpp>
+     5  
+     6  using namespace std;
+     7  using namespace cv;
+     8  
+     9  #define MAX_VALUE 100
+    10  #define KSIZE 3
+    11  const string windowName = "result";
+    12  int value = 0;
+    13  Mat image;
+    14  Mat grayImage;
+    15  Mat tmpImage;
+    16  Mat lapImage;
+    17  Mat resultImage;
+    18  void onChange(int value, void* data);
+    19  
+    20  int main(int argc, char* argv[]){
+    21    if (argc < 2){
+    22      cerr << "usage: sharpening <sourceFile>" << endl;
+    23      return -1;
+    24    }
+    25    image = imread(argv[1]);
+    26    if (!image.data){
+    27      cerr << "no such file: " << argv[1] << endl;
+    28      return -1;
+    29    }
+    30    cvtColor(image, grayImage, CV_BGR2GRAY);
+    31    image.release();
+    32  
+    33    namedWindow(windowName, CV_WINDOW_AUTOSIZE);
+    34    const string trackbarName = "alpha";
+    35    createTrackbar(trackbarName, windowName, &value, MAX_VALUE, onChange, NULL);
+    36    onChange(value, NULL);
+    37  
+    38    waitKey(0);
+    39    tmpImage.release();
+    40    lapImage.release();
+    41    resultImage.release();
+    42    return 0;
+    43  }
+    44  
+    45   void onChange(int value, void* data){
+    46     double alpha = value * 0.01;
+    47     Laplacian(grayImage, tmpImage, CV_32FC1, KSIZE);
+    48     convertScaleAbs(tmpImage, lapImage);
+    49     resultImage = grayImage - alpha * lapImage;
+    50     imshow(windowName, resultImage);
+    51   }
+
 </xmp>
 <h4> ○実行結果 </h4>
-<img src="https://www.evernote.com/l/AbH6Edxm639JRJg0lg7lDLjgzV4XAi0rJI4B/image.png" alt="result" />
-<img src="https://www.evernote.com/l/AbGZRqmNBaxJ-6NWpol4WKBKFltXEUCznBQB/image.png" alt="result" />
-<img src="https://www.evernote.com/l/AbFcppbRnGhCgrcFGt4Qg-Y3SS7gnDhR3BwB/image.png" alt="result" />
-<img src="https://www.evernote.com/l/AbFs4rZqP0REvIiRSWruIOUyCb_uXb0-cKIB/image.png" alt="result" />
+<img src="https://www.evernote.com/l/AbHISmxUDKBFWLZZe4nw5AhvasAC1Usv6rYB/image.png" alt="result" />
+<img src="https://www.evernote.com/l/AbGAUorbtClOBakzm6XTziqpFI2nHSvuy-oB/image.png" alt="result" />
+<img src="https://www.evernote.com/l/AbFIuy75YlxA_Zdsv0OIadwmlMWWkSjRn88B/image.png" alt="result" />
 <h4> ○考察 </h4>
 <blockquote>
-ラプラシアンフィルタを用いて画像を鮮鋭化するプログラム．鮮鋭画像はラプラシアンフィルタ
-をΔ，原画像 I(x,y) として I(x,y) - αΔ I(x,y) ただし，αは鮮鋭化の程度という処理で得られる．プ
-ログラムリストを見てみると，27-29 行目で原画像を表示した後，42-45 行目でトラックバーを生成
-し，コールバック関数 onChange を呼んでいる．onChange 関数の中身を見てみると，まずトラック
-バー値を整形して 1,3,5,7 のいずれかにし，ラプラシアンフィルタのカーネルサイズの引き数として用
-いる (60 行目)．62 行目で画像の引き算を行い，結果画像を表示する．また，main 関数の中の 31-40
-行目は，I(x,y) - Δ I(x,y) 　の処理をカーネルを用いて 1.12 節例 2 の filter2D の応用として行った結
-29
-果を表示する．実行
-結果を見てみると，カーネルサイズが 1 のときは入力画像とあまり変化は見られないが，トラック
-バーを動かしてサイズがあがるごとにエッジが強調されていく．サイズが大きくなるほど黒く塗り潰れてしまい上手く判定ができなかった．
+ラプラシアンフィルタを使い画像を精鋭化した．画像は読み込み画像を灰色にし，画像の鮮鋭化を行うプログラムである．
+トラックバーを大きくすると画像の濃淡が濃くなり，鮮鋭化が行われているのが分かる．
+鮮鋭画像はラプラシアンフィルタをΔ，原画像 I(x,y) として I(x,y) - αΔ I(x,y)によって実現される．アルファの値を調節することで鮮鋭化の程度を変える．この計算をしている部分は49行目である．トレックバーの値がアルファであり，これを自由に変更することによって，鮮鋭画像を調節している．
+
 </blockquote>
 
 <h3>
